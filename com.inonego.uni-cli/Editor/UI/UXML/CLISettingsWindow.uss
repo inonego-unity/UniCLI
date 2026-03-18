@@ -1,0 +1,724 @@
+/* ============================================================
+ * UniCLI Settings Window — USS
+ * Unity Dark Theme + Blue Accent
+ * ============================================================ */
+
+:root {
+    /* Background */
+    --c-bg-0:      #1e1e1e;
+    --c-bg-1:      #282828;
+    --c-bg-2:      #323232;
+    --c-bg-3:      #3c3c3c;
+    --c-bg-4:      #464646;
+
+    /* Borders */
+    --c-border-0:  #333333;
+    --c-border-1:  #505050;
+    --c-border-subtle: rgba(255, 255, 255, 0.03);
+    --c-border-light:  rgba(255, 255, 255, 0.08);
+
+    /* Blue accent */
+    --c-blue:      #4d88ff;
+    --c-blue-dim:  #2a55cc;
+    --c-blue-hi:   #76aaff;
+    --c-blue-hover: rgba(77, 136, 255, 0.08);
+    --c-blue-bg:    rgba(77, 136, 255, 0.14);
+    --c-blue-sel:   rgba(77, 136, 255, 0.20);
+    --c-blue-bd:    rgba(77, 136, 255, 0.36);
+
+    /* Green */
+    --c-green:     #4ac888;
+    --c-green-bg:  rgba(74, 200, 136, 0.12);
+    --c-green-bd:  rgba(74, 200, 136, 0.32);
+    --c-green-hi:  #62dea0;
+
+    /* Red */
+    --c-red:       #e05060;
+    --c-red-bg:    rgba(224, 80, 96, 0.12);
+    --c-red-hover: rgba(224, 80, 96, 0.22);
+    --c-red-bd:    rgba(224, 80, 96, 0.32);
+
+    /* Yellow */
+    --c-yellow:    #d4a830;
+
+    /* Orange (CMD badge) */
+    --c-orange:    #e09050;
+    --c-orange-bg: rgba(224, 144, 80, 0.14);
+    --c-orange-bd: rgba(224, 144, 80, 0.36);
+    --c-orange-hi: #f0a868;
+
+    /* Text */
+    --c-text-0:    #e2e2e2;
+    --c-text-1:    #c0c0c0;
+    --c-text-2:    #909090;
+    --c-text-3:    #808080;
+
+    /* Hover */
+    --c-hover-subtle: rgba(255, 255, 255, 0.02);
+
+    /* Radius */
+    --r-sm:  3px;
+    --r-md:  5px;
+    --r-lg:  7px;
+}
+
+
+/* ============================================================
+ * Root & Layout
+ * ============================================================ */
+.cli-root {
+    flex-grow: 1;
+    flex-direction: column;
+    background-color: var(--c-bg-1);
+}
+
+.cli-main-split,
+.cli-tab-fill,
+.cli-log-panel,
+.cli-log-detail,
+.cli-commands-scroll,
+.cli-placeholder {
+    flex-grow: 1;
+}
+
+.cli-tab-fill,
+.cli-log-panel {
+    flex-direction: column;
+}
+
+.cli-tab-content {
+    padding: 14px;
+}
+
+
+/* ============================================================
+ * Shared: bg-0 surfaces
+ * ============================================================ */
+.cli-log-list,
+.cli-log-list .unity-scroll-view,
+.cli-log-list .unity-scroll-view__content-container,
+.cli-log-detail,
+.cli-section .unity-base-text-field__input,
+.cli-section .unity-integer-field__input,
+.cli-section .unity-toggle__checkmark {
+    background-color: var(--c-bg-0);
+}
+
+/* Shared: bg-2 surfaces */
+.cli-root .unity-tab-view__header-container,
+.cli-root .unity-tab-view__header-tabs-strip,
+.cli-root .unity-tab-view__header-filler,
+.cli-toolbar,
+.cli-summary,
+.cli-section,
+.cli-group-header {
+    background-color: var(--c-bg-2);
+}
+
+/* Shared: border-0 borders */
+.cli-section {
+    border-width: 1px;
+    border-color: var(--c-border-0);
+}
+
+.cli-root .unity-tab-view__header-container,
+.cli-toolbar,
+.cli-summary,
+.cli-section-header {
+    border-bottom-width: 1px;
+    border-bottom-color: var(--c-border-0);
+}
+
+/* Shared: flex-shrink: 0 */
+.cli-root .unity-tab-view__header-container,
+.cli-toolbar,
+.cli-summary,
+.cli-toolbar-toggle,
+.cli-toolbar-btn,
+.cli-log-count,
+.cli-badge,
+.cli-action-name {
+    flex-shrink: 0;
+}
+
+/* Shared: text color groups */
+.cli-section-header,
+.cli-toolbar-toggle,
+.cli-log-count,
+.cli-summary,
+.cli-placeholder {
+    color: var(--c-text-3);
+}
+
+.cli-toolbar-btn,
+.cli-btn-secondary {
+    color: var(--c-text-2);
+}
+
+/* Shared: font-size 11px */
+.cli-toolbar-toggle,
+.cli-toolbar-btn,
+.cli-summary,
+.cli-log-item,
+.cli-log-detail-text > .unity-text-field__input,
+.cli-btn-secondary {
+    font-size: 11px;
+}
+
+/* Shared: font-size 12px + bold */
+.cli-btn,
+.cli-action-name {
+    font-size: 12px;
+    -unity-font-style: bold;
+}
+
+.cli-status-label,
+.cli-section-header,
+.cli-badge {
+    -unity-font-style: bold;
+}
+
+/* Shared: hover -> bg-3 */
+.cli-btn:hover,
+.cli-toolbar-toggle:hover,
+.cli-toolbar-btn:hover,
+.cli-btn-secondary:hover,
+.cli-action:hover {
+    background-color: var(--c-bg-3);
+}
+
+
+/* ============================================================
+ * TabView
+ * ============================================================ */
+.cli-root .unity-tab-view__header-container {
+    min-height: 34px;
+}
+
+.cli-root .unity-tab-view__content-container {
+    flex-grow: 1;
+    flex-direction: column;
+    background-color: var(--c-bg-1);
+}
+
+.cli-root .unity-tab__header {
+    background-color: transparent;
+    border-width: 0;
+    padding: 0;
+    margin: 0;
+    flex-direction: column;
+}
+
+.cli-root .unity-tab__header-underline {
+    height: 2px;
+    background-color: transparent;
+    flex-shrink: 0;
+}
+
+/* Inactive tab label (active state handled by C# inline styles) */
+.cli-root .unity-tab__header-label {
+    color: var(--c-text-3);
+    font-size: 12px;
+    padding: 8px 16px 6px 16px;
+    -unity-font-style: normal;
+    background-color: transparent;
+    margin: 0;
+}
+
+.cli-root .unity-tab__header-label:hover {
+    color: var(--c-text-1);
+}
+
+
+/* ============================================================
+ * Section Card
+ * ============================================================ */
+.cli-section {
+    border-radius: var(--r-lg);
+    padding: 12px 14px;
+    margin-bottom: 10px;
+}
+
+.cli-section-header {
+    font-size: 10px;
+    letter-spacing: 1.2px;
+    margin-bottom: 10px;
+    padding-bottom: 6px;
+}
+
+
+/* ============================================================
+ * Form Fields
+ * ============================================================ */
+.cli-section .unity-base-field {
+    margin-bottom: 5px;
+}
+
+.cli-section .unity-base-field__label {
+    color: var(--c-text-0);
+    font-size: 12px;
+    min-width: 90px;
+}
+
+.cli-section .unity-base-text-field__input,
+.cli-section .unity-integer-field__input {
+    border-width: 1px;
+    border-color: var(--c-border-1);
+    border-radius: var(--r-md);
+    color: var(--c-text-0);
+    padding: 3px 7px;
+}
+
+.cli-section .unity-base-text-field__input:focus,
+.cli-section .unity-integer-field__input:focus {
+    border-color: var(--c-blue);
+}
+
+.cli-section .unity-toggle__label {
+    color: var(--c-text-0);
+}
+
+.cli-section .unity-toggle__checkmark {
+    border-width: 1px;
+    border-color: var(--c-border-1);
+    border-radius: 2px;
+}
+
+.cli-section .unity-toggle:checked .unity-toggle__checkmark {
+    background-color: var(--c-blue);
+    border-color: var(--c-blue);
+}
+
+
+/* ============================================================
+ * Status Row
+ * ============================================================ */
+.cli-status-row {
+    flex-direction: row;
+    align-items: center;
+    padding: 9px 12px;
+    border-radius: var(--r-md);
+    margin-bottom: 10px;
+    border-width: 1px;
+}
+
+.cli-status-row--running {
+    background-color: var(--c-green-bg);
+    border-color: var(--c-green-bd);
+}
+
+.cli-status-row--stopped {
+    background-color: var(--c-red-bg);
+    border-color: var(--c-red-bd);
+}
+
+.cli-status-dot {
+    width: 9px;
+    height: 9px;
+    border-radius: 5px;
+    margin-right: 9px;
+    flex-shrink: 0;
+}
+
+.cli-status-dot--running { background-color: var(--c-green); }
+.cli-status-dot--stopped { background-color: var(--c-red); }
+
+.cli-status-label { font-size: 12px; }
+
+.cli-status-label--running { color: var(--c-green); }
+.cli-status-label--stopped { color: var(--c-red); }
+
+.cli-port-label {
+    font-size: 11px;
+    color: var(--c-text-2);
+    margin-left: 10px;
+}
+
+
+/* ============================================================
+ * Buttons
+ * ============================================================ */
+.cli-button-row {
+    flex-direction: row;
+    margin-bottom: 6px;
+}
+
+.cli-button-row > .cli-btn {
+    flex-grow: 1;
+    margin-right: 5px;
+}
+
+
+.cli-btn {
+    height: 28px;
+    border-radius: var(--r-md);
+    border-width: 1px;
+    border-color: var(--c-border-1);
+    color: var(--c-text-1);
+}
+
+.cli-btn:hover {
+    background-color: var(--c-bg-4);
+    color: var(--c-text-0);
+}
+
+.cli-btn:active {
+    background-color: var(--c-bg-2);
+    color: var(--c-text-1);
+}
+
+/* Primary (Start) */
+.cli-btn-primary {
+    background-color: var(--c-blue);
+    border-color: var(--c-blue);
+    color: white;
+}
+
+.cli-btn-primary:hover {
+    background-color: var(--c-blue-hi);
+    border-color: var(--c-blue-hi);
+    color: white;
+}
+
+.cli-btn-primary:active {
+    background-color: var(--c-blue-dim);
+    border-color: var(--c-blue-dim);
+    color: var(--c-blue-hi);
+}
+
+/* Danger (Stop) */
+.cli-btn-danger {
+    background-color: var(--c-red-bg);
+    border-color: var(--c-red-bd);
+    color: var(--c-red);
+}
+
+.cli-btn-danger:hover {
+    background-color: var(--c-red-hover);
+    border-color: var(--c-red);
+}
+
+.cli-btn-danger:active {
+    background-color: var(--c-red-bd);
+    border-color: var(--c-red);
+}
+
+/* Secondary (Reset to Defaults) */
+.cli-btn-secondary {
+    height: 26px;
+    -unity-font-style: normal;
+    background-color: transparent;
+    border-color: var(--c-border-0);
+}
+
+.cli-btn-secondary:hover {
+    color: var(--c-text-0);
+    border-color: var(--c-border-1);
+}
+
+
+/* ============================================================
+ * Toolbar
+ * ============================================================ */
+.cli-toolbar {
+    flex-direction: row;
+    align-items: center;
+    padding: 4px 8px;
+    min-height: 32px;
+    overflow: hidden;
+}
+
+/* Search field */
+.cli-toolbar .unity-toolbar-search-field__search-button,
+.cli-toolbar .unity-toolbar-search-field__cancel-button {
+    background-color: transparent;
+    border-width: 0;
+}
+
+.cli-toolbar .unity-toolbar-search-field > .unity-base-text-field__input {
+    background-color: var(--c-bg-0);
+    border-width: 1px;
+    border-color: var(--c-border-1);
+    border-radius: var(--r-md);
+    color: var(--c-text-0);
+    font-size: 11px;
+    padding: 2px 6px;
+}
+
+.cli-toolbar .unity-toolbar-search-field > .unity-base-text-field__input:focus {
+    border-color: var(--c-blue);
+}
+
+/* Toolbar toggle */
+/* Shared toolbar button base */
+.cli-toolbar-toggle,
+.cli-toolbar-btn {
+    background-color: transparent;
+    border-width: 1px;
+    border-color: var(--c-border-0);
+    border-radius: var(--r-sm);
+    padding: 2px 8px;
+    margin-right: 3px;
+    height: 20px;
+}
+
+.cli-toolbar-toggle:hover {
+    border-color: var(--c-border-1);
+    color: var(--c-text-1);
+}
+
+/* Default checked (blue) — Commands, Auto-Scroll */
+.cli-toolbar-toggle:checked {
+    background-color: var(--c-blue-bg);
+    border-color: var(--c-blue-bd);
+    color: var(--c-blue);
+}
+
+/* Info — blue (default) */
+
+/* Warning — yellow */
+#filter-warning:checked {
+    background-color: rgba(212, 168, 48, 0.14);
+    border-color: rgba(212, 168, 48, 0.36);
+    color: var(--c-yellow);
+}
+
+/* Error — red */
+#filter-error:checked {
+    background-color: var(--c-red-bg);
+    border-color: var(--c-red-bd);
+    color: var(--c-red);
+}
+
+.cli-toolbar-toggle .unity-toggle__checkmark {
+    display: none;
+}
+
+.cli-toolbar-toggle .unity-toggle__label {
+    margin: 0;
+    padding: 0;
+}
+
+/* Toolbar text button */
+.cli-toolbar-btn:hover {
+    color: var(--c-text-0);
+    border-color: var(--c-border-1);
+}
+
+.cli-toolbar-spacer { flex-grow: 1; }
+.cli-toolbar-gap    { width: 8px; }
+
+.cli-toolbar-search {
+    flex-grow: 1;
+    flex-shrink: 1;
+    min-width: 0;
+    margin-right: 6px;
+}
+
+.cli-settings-scroll {
+    flex-grow: 1;
+}
+
+.cli-log-count {
+    font-size: 10px;
+    padding: 0 6px;
+    -unity-text-align: middle-left;
+}
+
+
+/* ============================================================
+ * Summary Strip
+ * ============================================================ */
+.cli-summary-row {
+    flex-direction: row;
+    align-items: center;
+    background-color: var(--c-bg-2);
+    border-bottom-width: 1px;
+    border-bottom-color: var(--c-border-0);
+    padding: 2px 8px;
+    flex-shrink: 0;
+}
+
+.cli-summary {
+    padding: 4px 2px;
+}
+
+
+/* ============================================================
+ * Commands
+ * ============================================================ */
+.cli-commands-scroll {
+    background-color: var(--c-bg-1);
+}
+
+.cli-commands-container {
+    padding: 6px 8px 12px 8px;
+}
+
+
+/* ============================================================
+ * Section Headers (Group)
+ * ============================================================ */
+.cli-group-header {
+    color: var(--c-text-0);
+    font-size: 12px;
+    -unity-font-style: bold;
+    padding: 6px 8px;
+    margin-top: 2px;
+    background-color: var(--c-bg-2);
+}
+
+
+/* ============================================================
+ * Action Item
+ * ============================================================ */
+.cli-action {
+    flex-direction: row;
+    align-items: center;
+    padding: 4px 6px;
+    margin: 1px 0;
+    border-radius: var(--r-sm);
+}
+
+.cli-badge {
+    font-size: 9px;
+    padding: 1px 5px;
+    border-radius: 2px;
+    margin-right: 6px;
+    letter-spacing: 0.3px;
+    border-width: 1px;
+}
+
+.cli-badge-cmd {
+    background-color: var(--c-orange-bg);
+    color: var(--c-orange-hi);
+    border-color: var(--c-orange-bd);
+}
+
+.cli-action-name {
+    color: var(--c-text-0);
+}
+
+
+/* ============================================================
+ * Command Detail Overlay
+ * ============================================================ */
+.cli-command-overlay {
+    position: absolute;
+    min-width: 240px;
+    max-width: 320px;
+    max-height: 50%;
+    padding: 12px 16px;
+    background-color: var(--c-bg-2);
+    border-width: 1px;
+    border-color: var(--c-border-1);
+    border-radius: var(--r-lg);
+    overflow: scroll;
+    flex-shrink: 0;
+}
+
+
+.cli-overlay-header {
+    flex-direction: row;
+    align-items: center;
+    margin-bottom: 4px;
+}
+
+.cli-overlay-name {
+    font-size: 13px;
+    -unity-font-style: bold;
+    color: var(--c-text-0);
+}
+
+.cli-overlay-desc {
+    font-size: 11px;
+    color: var(--c-text-1);
+    white-space: normal;
+    margin-bottom: 8px;
+}
+
+
+.cli-placeholder {
+    font-size: 12px;
+    -unity-font-style: italic;
+    -unity-text-align: middle-center;
+    padding: 40px 20px;
+}
+
+
+/* ============================================================
+ * Log ListView
+ * ============================================================ */
+.cli-log-list .unity-list-view__item {
+    border-bottom-width: 1px;
+    border-bottom-color: var(--c-border-subtle);
+}
+
+.cli-log-list .unity-list-view__item:hover {
+    background-color: var(--c-blue-hover);
+}
+
+.cli-log-list .unity-list-view__item--selected,
+.cli-log-list .unity-collection-view__item--selected {
+    background-color: var(--c-blue-sel);
+}
+
+.cli-log-list .unity-list-view__item--selected:hover,
+.cli-log-list .unity-collection-view__item--selected:hover {
+    background-color: var(--c-blue-bg);
+}
+
+.cli-log-item {
+    padding: 2px 8px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    -unity-text-align: middle-left;
+}
+
+.cli-log-item--info    { color: var(--c-text-1); }
+.cli-log-item--warning { color: var(--c-yellow); }
+.cli-log-item--error   { color: var(--c-red); }
+
+
+/* ============================================================
+ * Log Panel (right side)
+ * ============================================================ */
+.cli-log-panel {
+    border-left-width: 1px;
+    border-left-color: var(--c-border-light);
+}
+
+.cli-log-split-container {
+    flex-grow: 1;
+    position: relative;
+}
+
+.cli-log-split {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+}
+
+.cli-log-detail {
+    border-top-width: 1px;
+    border-top-color: var(--c-border-light);
+}
+
+.cli-log-detail-text {
+    margin: 0;
+    border-width: 0;
+    background-color: transparent;
+}
+
+.cli-log-detail-text > .unity-text-field__input {
+    padding: 6px 10px;
+    color: var(--c-text-1);
+    background-color: transparent;
+    border-width: 0;
+    white-space: normal;
+    cursor: text;
+    overflow: visible;
+}

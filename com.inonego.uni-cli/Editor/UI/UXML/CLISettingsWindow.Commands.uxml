@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ui:UXML xmlns:ui="UnityEngine.UIElements"
+         xmlns:uie="UnityEditor.UIElements"
+         editor-extension-mode="True">
+
+    <ui:VisualElement class="cli-tab-fill">
+
+        <ui:VisualElement class="cli-toolbar">
+            <uie:ToolbarSearchField name="commands-search" class="cli-toolbar-search" />
+        </ui:VisualElement>
+
+        <ui:VisualElement class="cli-toolbar">
+            <uie:ToolbarToggle name="filter-commands" text="Commands 0" value="true" class="cli-toolbar-toggle" />
+            <ui:VisualElement class="cli-toolbar-spacer" />
+            <ui:Button name="btn-refresh" text="↺" class="cli-toolbar-btn" />
+        </ui:VisualElement>
+
+        <ui:ScrollView name="commands-scroll" class="cli-commands-scroll" vertical-scroller-visibility="Auto" horizontal-scroller-visibility="Hidden" mode="Vertical">
+            <ui:VisualElement name="commands-container" class="cli-commands-container" />
+        </ui:ScrollView>
+
+    </ui:VisualElement>
+
+</ui:UXML>

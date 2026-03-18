@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ui:UXML xmlns:ui="UnityEngine.UIElements"
+         xmlns:uie="UnityEditor.UIElements"
+         editor-extension-mode="True">
+
+    <ui:ScrollView name="settings-scroll" class="cli-settings-scroll" vertical-scroller-visibility="Auto">
+        <ui:VisualElement class="cli-tab-content">
+
+            <!-- CONFIGURATION -->
+            <ui:VisualElement class="cli-section">
+                <ui:Label text="CONFIGURATION" class="cli-section-header" />
+                <ui:IntegerField name="field-port" label="Port" />
+                <ui:Toggle name="field-auto-start" label="Auto-Start" />
+                <ui:Toggle name="field-enabled" label="Enabled" />
+            </ui:VisualElement>
+
+            <!-- SERVER STATUS -->
+            <ui:VisualElement class="cli-section">
+                <ui:Label text="SERVER STATUS" class="cli-section-header" />
+                <ui:VisualElement name="status-row" class="cli-status-row">
+                    <ui:VisualElement name="status-dot" class="cli-status-dot" />
+                    <ui:Label name="status-label" text="Stopped" class="cli-status-label" />
+                    <ui:Label name="port-label" text="—" class="cli-port-label" />
+                </ui:VisualElement>
+                <ui:VisualElement class="cli-button-row">
+                    <ui:Button name="btn-start-stop" text="Start" class="cli-btn cli-btn-primary" />
+                    <ui:Button name="btn-restart" text="Restart" class="cli-btn" />
+                </ui:VisualElement>
+            </ui:VisualElement>
+
+            <ui:Button name="btn-reset" text="Reset" class="cli-btn cli-btn-secondary" />
+
+        </ui:VisualElement>
+    </ui:ScrollView>
+
+</ui:UXML>

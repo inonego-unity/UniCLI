@@ -1,0 +1,25 @@
+{
+    "name": "inonego.UniCLI.Editor",
+    "rootNamespace": "inonego.UniCLI",
+    "references": [
+        "UnityEditor.TestRunner",
+        "Unity.Recorder.Editor"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [
+        {
+            "name": "com.inonego.uni-lua",
+            "expression": "",
+            "define": "HAS_UNILUA"
+        }
+    ],
+    "noEngineReferences": false
+}

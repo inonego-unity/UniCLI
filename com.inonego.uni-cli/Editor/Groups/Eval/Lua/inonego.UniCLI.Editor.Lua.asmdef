@@ -1,0 +1,27 @@
+{
+    "name": "inonego.UniCLI.Editor.Lua",
+    "rootNamespace": "inonego.UniCLI.Group",
+    "references": [
+        "inonego.UniLua",
+        "inonego.UniCLI.Editor"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [
+        "HAS_UNILUA"
+    ],
+    "versionDefines": [
+        {
+            "name": "com.inonego.uni-lua",
+            "expression": "",
+            "define": "HAS_UNILUA"
+        }
+    ],
+    "noEngineReferences": false
+}

@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ui:UXML xmlns:ui="UnityEngine.UIElements"
+         xmlns:uie="UnityEditor.UIElements"
+         editor-extension-mode="True">
+
+    <ui:VisualElement name="log-content" class="cli-tab-fill">
+
+        <ui:VisualElement class="cli-toolbar">
+            <uie:ToolbarToggle name="filter-info"    text="Info 0"    value="true" class="cli-toolbar-toggle" />
+            <uie:ToolbarToggle name="filter-warning" text="Warning 0" value="true" class="cli-toolbar-toggle" />
+            <uie:ToolbarToggle name="filter-error"   text="Error 0"   value="true" class="cli-toolbar-toggle" />
+            <ui:VisualElement class="cli-toolbar-spacer" />
+            <uie:ToolbarToggle name="filter-autoscroll" text="Auto-Scroll" value="true" class="cli-toolbar-toggle" />
+            <ui:VisualElement class="cli-toolbar-gap" />
+            <ui:Button name="btn-clear" text="Clear" class="cli-toolbar-btn" />
+        </ui:VisualElement>
+
+    </ui:VisualElement>
+
+</ui:UXML>
