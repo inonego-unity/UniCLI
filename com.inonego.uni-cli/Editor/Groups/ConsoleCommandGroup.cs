@@ -5,6 +5,9 @@ using System.Linq;
 
 using UnityEngine;
 
+using UnityEditor;
+using UnityEditor.Compilation;
+
 using Newtonsoft.Json.Linq;
 
 namespace inonego.UniCLI.Group
@@ -18,6 +21,7 @@ namespace inonego.UniCLI.Group
    /// </summary>
    // ============================================================
    [CLIGroup("console", "Console log access")]
+   [InitializeOnLoad]
    public class ConsoleCommandGroup
    {
 
@@ -26,7 +30,6 @@ namespace inonego.UniCLI.Group
       private static readonly List<LogEntry> logBuffer = new List<LogEntry>();
       private static readonly object bufferLock = new object();
       private const int MaxBufferSize = 500;
-      private static bool registered = false;
 
       private struct LogEntry
       {
@@ -40,23 +43,34 @@ namespace inonego.UniCLI.Group
 
    #region Constructors
 
-      // ============================================================
+      // ======================================================================
       /// <summary>
-      /// Registers the log callback on first access.
+      /// Registers log and compilation error callbacks on domain reload.
       /// </summary>
-      // ============================================================
-      private static void EnsureRegistered()
+      // ======================================================================
+      static ConsoleCommandGroup()
       {
-         if (registered)
-         {
-            return;
-         }
-
-         registered = true;
          Application.logMessageReceived += OnLogMessage;
+         CompilationPipeline.assemblyCompilationFinished += OnCompilationFinished;
       }
 
       private static void OnLogMessage(string message, string stackTrace, LogType type)
+      {
+         AddEntry(message, stackTrace, type.ToString());
+      }
+
+      private static void OnCompilationFinished(string assemblyPath, CompilerMessage[] messages)
+      {
+         foreach (var msg in messages)
+         {
+            if (msg.type == CompilerMessageType.Error)
+            {
+               AddEntry(msg.message, $"{msg.file}({msg.line},{msg.column})", "CompileError");
+            }
+         }
+      }
+
+      private static void AddEntry(string message, string stackTrace, string type)
       {
          lock (bufferLock)
          {
@@ -69,7 +83,7 @@ namespace inonego.UniCLI.Group
             {
                Message    = message,
                StackTrace = stackTrace,
-               Type       = type.ToString(),
+               Type       = type,
                Timestamp  = DateTime.Now
             });
          }
@@ -87,8 +101,6 @@ namespace inonego.UniCLI.Group
       [CLICommand("", "Read console logs")]
       public static object Read(CommandArgs args)
       {
-         EnsureRegistered();
-
          string typeFilter = args.Option("type");
          string sinceStr   = args.Option("since");
 

@@ -34,6 +34,15 @@ cat file | unicli eval cs -              # stdin pipe
 
 C# code must use `return` for output. Lua uses `return` directly.
 
+**Quoting**: Use double quotes when code contains `!` or special characters. Escape inner quotes with `\"`.
+```bash
+# Single quotes — simple code
+unicli eval cs 'return 1+1;'
+
+# Double quotes — when code has ! or inner quotes
+unicli eval cs "return f != null ? \"yes\" : \"no\";"
+```
+
 Examples:
 ```bash
 unicli eval cs 'return GameObject.Find("Player").name;'

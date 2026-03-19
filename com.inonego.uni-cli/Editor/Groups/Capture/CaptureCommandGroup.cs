@@ -81,26 +81,14 @@ namespace inonego.UniCLI.Group
       // ------------------------------------------------------------
       private static object CaptureGameView(string path, float scale)
       {
-         if (Camera.main == null)
+         int superSize = Mathf.Max(1, Mathf.RoundToInt(scale));
+
+         var tex = ScreenCapture.CaptureScreenshotAsTexture(superSize);
+
+         if (tex == null)
          {
-            throw new CLIException(ErrorCode.INTERNAL_ERROR, "No main camera found.");
+            throw new CLIException(ErrorCode.INTERNAL_ERROR, "Failed to capture game view.");
          }
-
-         int width  = (int)(Screen.width * scale);
-         int height = (int)(Screen.height * scale);
-
-         var rt  = new RenderTexture(width, height, 24);
-         var tex = new Texture2D(width, height, TextureFormat.RGB24, false);
-
-         Camera.main.targetTexture = rt;
-         Camera.main.Render();
-
-         RenderTexture.active = rt;
-         tex.ReadPixels(new Rect(0, 0, width, height), 0, 0);
-         tex.Apply();
-
-         Camera.main.targetTexture = null;
-         RenderTexture.active = null;
 
          if (string.IsNullOrEmpty(path))
          {
@@ -110,7 +98,9 @@ namespace inonego.UniCLI.Group
          Directory.CreateDirectory(Path.GetDirectoryName(path));
          File.WriteAllBytes(path, tex.EncodeToPNG());
 
-         UnityEngine.Object.DestroyImmediate(rt);
+         int width  = tex.width;
+         int height = tex.height;
+
          UnityEngine.Object.DestroyImmediate(tex);
 
          return new JObject
