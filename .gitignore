@@ -4,8 +4,6 @@
 cli/bin/
 cli/obj/
 
-# Allow CLI project file (override *.csproj ignore below)
-!cli/unicli.csproj
 
 # This .gitignore file should be placed at the root of your Unity project directory
 #
@@ -50,6 +48,7 @@ cli/obj/
 ExportedObj/
 .consulo/
 *.csproj
+!cli/unicli.csproj
 *.unityproj
 *.sln
 *.suo
