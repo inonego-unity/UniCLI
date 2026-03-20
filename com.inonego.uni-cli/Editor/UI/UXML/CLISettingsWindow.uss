@@ -722,3 +722,21 @@
     cursor: text;
     overflow: visible;
 }
+
+/* ---- Skill Status ---- */
+
+.cli-skill-status {
+    margin-top: 4px;
+    margin-bottom: 8px;
+    font-size: 11px;
+    color: var(--c-text-2);
+    -unity-font-style: italic;
+}
+
+.cli-skill-status--installed {
+    color: var(--c-green);
+}
+
+.cli-skill-status--missing {
+    color: var(--c-red);
+}

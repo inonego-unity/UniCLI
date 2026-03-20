@@ -16,14 +16,16 @@ namespace inonego.UniCLI.Core
 
       private const string PREFIX = "UniCLI_";
 
-      private const string KEY_PORT       = PREFIX + "Port";
-      private const string KEY_AUTO_START = PREFIX + "AutoStart";
-      private const string KEY_ENABLED    = PREFIX + "Enabled";
+      private const string KEY_PORT            = PREFIX + "Port";
+      private const string KEY_AUTO_START      = PREFIX + "AutoStart";
+      private const string KEY_ENABLED         = PREFIX + "Enabled";
+      private const string KEY_SKILL_AUTO_SYNC = PREFIX + "SkillAutoSync";
 
       private const int  DEFAULT_PORT              = 18960;
       private const int  DEFAULT_MAX_PORT_ATTEMPTS = 10;
       private const bool DEFAULT_AUTO_START        = true;
       private const bool DEFAULT_ENABLED           = true;
+      private const bool DEFAULT_SKILL_AUTO_SYNC   = true;
 
    #endregion
 
@@ -69,6 +71,17 @@ namespace inonego.UniCLI.Core
          set => EditorPrefs.SetBool(KEY_ENABLED, value);
       }
 
+      // ------------------------------------------------------------------
+      /// <summary>
+      /// Gets or sets whether to auto-sync Claude skills on domain reload.
+      /// </summary>
+      // ------------------------------------------------------------------
+      public static bool SkillAutoSync
+      {
+         get => EditorPrefs.GetBool(KEY_SKILL_AUTO_SYNC, DEFAULT_SKILL_AUTO_SYNC);
+         set => EditorPrefs.SetBool(KEY_SKILL_AUTO_SYNC, value);
+      }
+
    #endregion
 
    #region Methods
@@ -80,9 +93,10 @@ namespace inonego.UniCLI.Core
       // ------------------------------------------------------------
       public static void ResetToDefaults()
       {
-         Port      = DEFAULT_PORT;
-         AutoStart = DEFAULT_AUTO_START;
-         Enabled   = DEFAULT_ENABLED;
+         Port          = DEFAULT_PORT;
+         AutoStart     = DEFAULT_AUTO_START;
+         Enabled       = DEFAULT_ENABLED;
+         SkillAutoSync = DEFAULT_SKILL_AUTO_SYNC;
       }
 
    #endregion

@@ -1,4 +1,12 @@
-# UniCLI Command Reference
+---
+name: inonego-uni-cli
+description: Unity Editor CLI tool. Use when performing Unity editor operations — scene management, GameObject manipulation, asset operations, code evaluation, and more.
+user-invocable: false
+---
+
+# UniCLI
+
+`unicli <group> [command] [args...] [--options]` — all commands return JSON.
 
 ## Global Options
 
@@ -8,9 +16,26 @@
 | `--project <name>` | Select Unity project by name (substring match) |
 | `--pretty` | Pretty-print JSON output |
 | `--timeout <s>` | Connection/wait timeout in seconds |
-| `--help` | Show help (returns JSON from server) |
 
-Port resolution: `--port` > `UNICLI_PORT` env var > instance registry (`~/.unicli/instances/`) > default 18960
+Port resolution: `--port` > `UNICLI_PORT` env > instance registry (`~/.unicli/instances/`) > 18960
+
+## Output Format
+
+```json
+{"success":true,"result":...}
+{"success":false,"error":{"code":"...","message":"..."}}
+```
+
+Error codes: `INVALID_ARGS`, `INTERNAL_ERROR`, `COMPILE_ERROR`, `RUNTIME_ERROR`, `UNKNOWN_GROUP`, `UNKNOWN_COMMAND`, `MODAL`
+
+## Patterns
+
+- **Get/Set**: omit value → get, provide → set
+- **Stdin**: `cat file | unicli eval cs -` (POSIX `-`)
+- **Async**: test/build → `job_id` → `poll <job_id>`
+- **IDs**: positional if required, `--id` if optional. Negative IDs work as-is.
+- **Modal**: auto-detected during commands. Manual: `editor modal` → `editor modal click "Save"`
+- **Quoting**: `'...'` when code has `"`, `"..."` when code has `!` or special chars (escape inner `"` with `\"`).
 
 ---
 
@@ -26,30 +51,20 @@ Returns: `{"port":18960,"project":"MyGame","unity":"6000.3.7f1","platform":"Stan
 ## eval — Code Evaluation
 
 ```bash
-unicli eval cs '<code>'                  # C# (runtime compilation)
+unicli eval lua '<code>'                 # Lua — preferred (no compilation, fast)
+unicli eval cs '<code>'                  # C# — for full .NET API, generics, etc.
 unicli eval cs '<code>' --using <ns>     # add using namespace (repeatable)
-unicli eval lua '<code>'                 # Lua (interpreted, faster)
 cat file | unicli eval cs -              # stdin pipe
 ```
 
-C# code must use `return` for output. Lua uses `return` directly.
+**Prefer Lua** for simple queries and property access. Use C# only when Lua can't do it (generics, LINQ, complex .NET API).
+Both use `return` for output. C# requires `;`, Lua does not.
 
-**Quoting**: Use double quotes when code contains `!` or special characters. Escape inner quotes with `\"`.
+Lua accesses C# via `CS.` prefix:
 ```bash
-# Single quotes — simple code
-unicli eval cs 'return 1+1;'
-
-# Double quotes — when code has ! or inner quotes
-unicli eval cs "return f != null ? \"yes\" : \"no\";"
-```
-
-Examples:
-```bash
-unicli eval cs 'return GameObject.Find("Player").name;'
-unicli eval cs 'var go = new GameObject("Test"); return go.GetInstanceID();'
-unicli eval cs --using UnityEditor.SceneManagement 'EditorSceneManager.SaveOpenScenes(); return null;'
 unicli eval lua 'return CS.UnityEngine.Application.dataPath'
 unicli eval lua 'return CS.UnityEngine.SceneManagement.SceneManager.GetActiveScene().name'
+unicli eval lua 'return CS.UnityEditor.EditorApplication.isPlaying'
 ```
 
 ---
@@ -66,8 +81,6 @@ unicli eval lua 'return CS.UnityEngine.SceneManagement.SceneManager.GetActiveSce
 | `root` | | `--id <handle>` | List root GameObjects |
 | `active` | | `--id <handle>` | Get or set active scene |
 
-Scene object: `{"name":"...","path":"...","handle":<int>,"active":<bool>,"dirty":<bool>}`
-
 ---
 
 ## go — GameObject
@@ -82,9 +95,7 @@ Scene object: `{"name":"...","path":"...","handle":<int>,"active":<bool>,"dirty"
 | `scene` | `<id> [handle]` | | Get/set scene |
 | `children` | `<id>` | `--recursive` | List children |
 
-Primitive types: `cube`, `sphere`, `capsule`, `cylinder`, `plane`, `quad`
-
-GameObject object: `{"instance_id":<int>,"name":"...","type":"...","active":<bool>,"tag":"...","layer":<int>,"scene":<int>}`
+Primitives: `cube`, `sphere`, `capsule`, `cylinder`, `plane`, `quad`
 
 ---
 
@@ -131,23 +142,17 @@ GameObject object: `{"instance_id":<int>,"name":"...","type":"...","active":<boo
 | `window list` | | | List open windows |
 | `window focus` | `<id>` | | Focus window |
 | `window close` | `<id>` | | Close window |
-| `modal` | | | Detect native modal dialog (Win32, no main thread) |
-| `modal click` | `<button>` | | Click a button on the modal dialog |
-
-State object: `{"playing":<bool>,"paused":<bool>,"compiling":<bool>}`
-
-Window object: `{"instance_id":<int>,"type":"...","title":"..."}`
+| `modal` | | | Detect native modal (Win32) |
+| `modal click` | `<button>` | | Click modal button |
 
 ---
 
 ## console — Console Logs
 
-| Command | Args | Description |
-|---------|------|-------------|
-| (default) | | Read log buffer |
-| `clear` | | Clear log buffer |
-
-Log entry: `{"type":"...","message":"...","stacktrace":"...","timestamp":"..."}`
+| Command | Description |
+|---------|-------------|
+| (default) | Read log buffer (includes `CompileError` type) |
+| `clear` | Clear log buffer |
 
 ---
 
@@ -156,31 +161,26 @@ Log entry: `{"type":"...","message":"...","stacktrace":"...","timestamp":"..."}`
 ```bash
 unicli search '<query>'
 ```
-
-Result: `[{"id":"...","label":"...","description":"..."}]`
-
 Common queries: `t:Material`, `t:Prefab`, `t:Scene`, `t:Script`, `Player`
 
 ---
 
-## capture / record — Screen Capture
+## capture / record
 
 | Command | Args | Options | Description |
 |---------|------|---------|-------------|
 | `capture` | `game\|scene\|window <id>` | `--path`, `--scale` | Screenshot |
 | `record start` | | `--path`, `--fps`, `--duration` | Start recording (play mode only) |
-| `record stop` | | | Stop recording (play mode only) |
-
-Result: `{"path":"...","width":<int>,"height":<int>}`
+| `record stop` | | | Stop recording |
 
 ---
 
-## prefab — Prefab Operations
+## prefab
 
 | Command | Args | Description |
 |---------|------|-------------|
 | `load` | `<path>` | Load prefab for editing |
-| `unload` | `<root_id>` | Unload prefab contents (root_id from load) |
+| `unload` | `<root_id>` | Unload prefab contents |
 | `save` | `<id> <path>` | Save as prefab |
 | `apply` | `<id>` | Apply overrides |
 | `revert` | `<id>` | Revert overrides |
@@ -188,7 +188,7 @@ Result: `{"path":"...","width":<int>,"height":<int>}`
 
 ---
 
-## package — Package Management
+## package
 
 | Command | Args | Description |
 |---------|------|-------------|
@@ -196,69 +196,49 @@ Result: `{"path":"...","width":<int>,"height":<int>}`
 | `install` | `<id>` | Install (name or git URL) |
 | `rm` | `<id>` | Remove package |
 
-Package object: `{"name":"...","version":"...","display_name":"...","source":"..."}`
-
 ---
 
-## test — Test Management
-
-| Command | Args | Options | Description |
-|---------|------|---------|-------------|
-| `run` | | `--mode edit\|play` | Run tests → `job_id` |
-| `list` | | `--mode edit\|play` | List tests → `job_id` |
-
----
-
-## build — Project Build
+## test / build / poll
 
 ```bash
-unicli build --target <target> --path Builds/Game.exe --run
+unicli test run [--mode edit|play]      # → job_id
+unicli test list [--mode edit|play]     # → job_id
+unicli build --path Builds/Game.exe [--target <t>] [--run]   # → job_id
+unicli poll <job_id>                    # → {"status":"running|completed|failed","result":...}
 ```
-Returns `job_id`. Poll with `unicli poll <job_id>`. Open scenes are auto-saved before building. Windows builds require `.exe` in path. Editor must be focused for build to start.
+
+Build auto-saves open scenes. Windows builds require `.exe` in path.
 
 ---
 
-## poll — Poll Async Job
-
-```bash
-unicli poll <job_id>
-```
-Result: `{"status":"running|completed|failed","result":...}`
-
----
-
-## wait — Wait for Condition
+## wait
 
 ```bash
 unicli wait <condition> [--timeout <s>]
 ```
-
 Conditions: `not_compiling`, `not_playing`, `compiling`, `playing`
 
-Runs client-side (survives domain reload). Polls `editor state` via TCP every 500ms.
-
-Result: `{"condition":"not_compiling","elapsed":3200}`
+Client-side polling (survives domain reload).
 
 ---
 
-## Custom Commands
+## Serialization
 
-```csharp
-[CLIGroup("my_tools", "My custom tools")]
-public class MyToolsGroup
-{
-   [CLICommand("hello", "Say hello")]
-   public static object Hello(CommandArgs args)
-   {
-      string name = args.Arg(0);
-      return new { message = $"Hello, {name}!" };
-   }
-}
-```
+All results serialized via `ResultSerializer`:
 
-```bash
-unicli my_tools hello World
-```
+| C# Type | JSON |
+|---------|------|
+| null | `null` |
+| Primitive/string | `42`, `"hello"` |
+| Scene | `{"name","path","handle","active","dirty"}` |
+| GameObject | `{"instance_id","name","type","active","tag","layer","scene"}` |
+| Component | `{"instance_id","name","type","game_object"}` |
+| UnityEngine.Object | `{"instance_id","name","type"}` |
+| IDictionary | `{"key":"value"}` |
+| IEnumerable | `[...]` |
+| Other | Newtonsoft JSON |
+
+**snake_case keys**. Unity objects return identification only — for full data use `eval` with `JsonUtility.ToJson()`.
 
 ---
 
@@ -268,11 +248,8 @@ unicli my_tools hello World
 unicli scene root | jq '.result[].name'
 unicli scene root | jq '[.result[] | select(.active==true)]'
 unicli scene root | jq '.result[] | select(.tag=="Player")'
-unicli scene list | jq '.result[] | select(.dirty==true)'
 unicli package list | jq '[.result[] | select(.source=="Local")]'
-unicli editor state | jq '.result.playing'
 unicli editor window list | jq '.result[].title'
-unicli eval cs 'return 1+1;' | jq '.result'
 
 # Chain: find → destroy
 ID=$(unicli scene root | jq -r '.result[] | select(.name=="Player") | .instance_id')

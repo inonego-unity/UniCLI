@@ -15,6 +15,15 @@ namespace inonego.UniCLI
    public partial class CLISettingsWindow
    {
 
+   #region Fields — Skill
+
+      private Toggle skillAutoSyncToggle = null;
+      private Label  skillStatusLabel    = null;
+      private Button skillSyncButton     = null;
+      private Button skillRemoveButton   = null;
+
+   #endregion
+
    #region Settings Tab
 
       // ------------------------------------------------------------
@@ -39,6 +48,12 @@ namespace inonego.UniCLI
 
          var restartButton = tab.Q<Button>("btn-restart");
          var resetButton   = tab.Q<Button>("btn-reset");
+
+         // Skill
+         skillAutoSyncToggle = tab.Q<Toggle>("field-skill-auto-sync");
+         skillStatusLabel    = tab.Q<Label>("skill-status-label");
+         skillSyncButton     = tab.Q<Button>("btn-skill-sync");
+         skillRemoveButton   = tab.Q<Button>("btn-skill-remove");
 
          if (portField != null)
          {
@@ -76,7 +91,32 @@ namespace inonego.UniCLI
             resetButton.clicked += OnResetToDefaults;
          }
 
+         if (skillAutoSyncToggle != null)
+         {
+            skillAutoSyncToggle.value = CLISettings.SkillAutoSync;
+            skillAutoSyncToggle.RegisterValueChangedCallback(evt => CLISettings.SkillAutoSync = evt.newValue);
+         }
+
+         if (skillSyncButton != null)
+         {
+            skillSyncButton.clicked += () =>
+            {
+               SkillInstaller.Sync();
+               UpdateSkillStatus();
+            };
+         }
+
+         if (skillRemoveButton != null)
+         {
+            skillRemoveButton.clicked += () =>
+            {
+               SkillInstaller.Remove();
+               UpdateSkillStatus();
+            };
+         }
+
          UpdateServerStatus();
+         UpdateSkillStatus();
 
          return tab;
       }
@@ -182,6 +222,28 @@ namespace inonego.UniCLI
             // Clear inline styles so USS :hover / :active work correctly
             ClearButtonInlineStyles(startStopButton);
          }
+      }
+
+      // ------------------------------------------------------------
+      /// <summary>
+      /// Updates the skill installation status label.
+      /// </summary>
+      // ------------------------------------------------------------
+      private void UpdateSkillStatus()
+      {
+         if (skillStatusLabel == null)
+         {
+            return;
+         }
+
+         bool installed = SkillInstaller.IsInstalled;
+
+         skillStatusLabel.text = installed
+            ? "Installed at .claude/skills/inonego-uni-cli/"
+            : "Not installed";
+
+         skillStatusLabel.EnableInClassList("cli-skill-status--installed", installed);
+         skillStatusLabel.EnableInClassList("cli-skill-status--missing", !installed);
       }
 
    #endregion

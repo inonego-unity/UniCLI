@@ -60,7 +60,13 @@ https://github.com/inonego-unity/UniCLI.git?path=/com.inonego.uni-cli
 >
 > OpenUPM 지원 예정. 지원 시: `openupm add com.inonego.uni-cli`
 
-### 2. CLI 클라이언트
+### 2. Claude 스킬 (선택)
+
+Unity에서: **Window > UniCLI Settings > Claude Skill > Sync Skill**
+
+**Auto Sync**(기본 켜짐) 활성화 시 도메인 리로드마다 `.claude/skills/inonego-uni-cli/`에 자동 복사됩니다.
+
+### 3. CLI 클라이언트
 
 ```bash
 cd UniCLI/cli
@@ -148,7 +154,7 @@ unicli asset mv <src> <dst>          # 에셋 이동
 unicli asset cp <src> <dst>          # 에셋 복사
 unicli asset rename <path> <name>    # 에셋 이름 변경
 unicli asset refresh                 # AssetDatabase 새로고침
-unicli asset save --all              # 전체 저장 [--id <id>]
+unicli asset save                    # 에셋 저장 (--all 또는 --id <id>)
 ```
 
 ### editor — 에디터 제어
@@ -251,32 +257,6 @@ unicli ping
 ```json
 {"success":true,"result":...}
 {"success":false,"error":{"code":"...","message":"..."}}
-```
-
-### 반환값 직렬화
-
-C# 반환 타입에 따라 자동으로 직렬화됩니다:
-
-| C# 타입 | 직렬화 | 예시 |
-|---------|--------|------|
-| `null` | `null` | `null` |
-| 프리미티브 / string | 직접 값 | `42`, `"hello"` |
-| Enum | 문자열 | `"PlayMode"` |
-| `Scene` | Object | `{"name":"Main","path":"...","handle":1,"active":true,"dirty":false}` |
-| `GameObject` | Object | `{"instance_id":123,"name":"Player","type":"...","active":true,"tag":"...","layer":0,"scene":1}` |
-| `Component` | Object | `{"instance_id":456,"name":"Rigidbody","type":"...","game_object":123}` |
-| `UnityEngine.Object` | Object | `{"instance_id":789,"name":"Mat","type":"UnityEngine.Material"}` |
-| Dictionary | Object | `{"key":"value"}` |
-| IEnumerable | Array | `[1,2,3]` |
-| 익명 객체 / POCO | Object | `{"name":"Test","count":5}` |
-| Unity 구조체 (Vector3 등) | JsonUtility | `{"x":1,"y":2,"z":3}` |
-
-> `UnityEngine.Object` 하위 타입은 식별 정보만 반환합니다. 전체 직렬화가 필요하면 `eval`에서 `JsonUtility.ToJson()`을 직접 호출하세요.
-
-`jq`로 필터링:
-```bash
-unicli scene root | jq '.result[].name'
-unicli package list | jq '.result[] | select(.source=="Local")'
 ```
 
 ## 설정

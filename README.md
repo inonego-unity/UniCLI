@@ -60,7 +60,13 @@ Or add directly to `Packages/manifest.json`:
 >
 > OpenUPM support is planned. Once available: `openupm add com.inonego.uni-cli`
 
-### 2. CLI Client
+### 2. Claude Skill (Optional)
+
+In Unity: **Window > UniCLI Settings > Claude Skill > Sync Skill**
+
+Or enable **Auto Sync** (default on) to automatically copy skill files to `.claude/skills/inonego-uni-cli/` on every domain reload.
+
+### 3. CLI Client
 
 ```bash
 cd UniCLI/cli
@@ -148,7 +154,7 @@ unicli asset mv <src> <dst>          # move asset
 unicli asset cp <src> <dst>          # copy asset
 unicli asset rename <path> <name>    # rename asset
 unicli asset refresh                 # refresh AssetDatabase
-unicli asset save --all              # save all [--id <id>]
+unicli asset save                    # save assets (--all or --id <id>)
 ```
 
 ### editor — Editor Control
@@ -251,32 +257,6 @@ All commands return JSON:
 ```json
 {"success":true,"result":...}
 {"success":false,"error":{"code":"...","message":"..."}}
-```
-
-### Result Serialization
-
-Return values are automatically serialized based on their C# type:
-
-| C# Type | Serialization | Example |
-|---------|--------------|---------|
-| `null` | `null` | `null` |
-| Primitive / string | Direct value | `42`, `"hello"` |
-| Enum | String | `"PlayMode"` |
-| `Scene` | Object | `{"name":"Main","path":"...","handle":1,"active":true,"dirty":false}` |
-| `GameObject` | Object | `{"instance_id":123,"name":"Player","type":"...","active":true,"tag":"...","layer":0,"scene":1}` |
-| `Component` | Object | `{"instance_id":456,"name":"Rigidbody","type":"...","game_object":123}` |
-| `UnityEngine.Object` | Object | `{"instance_id":789,"name":"Mat","type":"UnityEngine.Material"}` |
-| Dictionary | Object | `{"key":"value"}` |
-| IEnumerable | Array | `[1,2,3]` |
-| Anonymous / POCO | Object | `{"name":"Test","count":5}` |
-| Unity struct (Vector3, etc.) | JsonUtility | `{"x":1,"y":2,"z":3}` |
-
-> `UnityEngine.Object` subclasses return identification info only. For full serialization, use `eval` with `JsonUtility.ToJson()`.
-
-Pipe to `jq` for filtering:
-```bash
-unicli scene root | jq '.result[].name'
-unicli package list | jq '.result[] | select(.source=="Local")'
 ```
 
 ## Configuration

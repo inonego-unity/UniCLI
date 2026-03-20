@@ -4,11 +4,17 @@
   "displayName": "UniCLI",
   "description": "CLI tools for Unity Editor",
   "unity": "6000.0",
-  "author": { "name": "inonego" },
+  "author": {
+    "name": "inonego"
+  },
   "license": "MIT",
   "dependencies": {
     "com.unity.nuget.newtonsoft-json": "3.2.1",
     "com.unity.recorder": "5.1.1"
   },
-  "keywords": ["cli", "editor", "tools"]
+  "keywords": [
+    "cli",
+    "editor",
+    "tools"
+  ]
 }
