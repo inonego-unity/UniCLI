@@ -28,14 +28,21 @@ Port resolution: `--port` > `UNICLI_PORT` env > instance registry (`~/.unicli/in
 
 Error codes: `INVALID_ARGS`, `INTERNAL_ERROR`, `COMPILE_ERROR`, `RUNTIME_ERROR`, `UNKNOWN_GROUP`, `UNKNOWN_COMMAND`, `MODAL`
 
+Use `jq` to extract specific fields and reduce output tokens:
+```bash
+unicli scene root | jq '.result[].name'
+unicli scene root | jq '.result[] | select(.tag=="Player") | .instance_id'
+```
+
 ## Patterns
 
 - **Get/Set**: omit value → get, provide → set
-- **Stdin**: `cat file | unicli eval cs -` (POSIX `-`)
-- **Async**: test/build → `job_id` → `poll <job_id>`
 - **IDs**: positional if required, `--id` if optional. Negative IDs work as-is.
-- **Modal**: auto-detected during commands. Manual: `editor modal` → `editor modal click "Save"`
-- **Quoting**: `'...'` when code has `"`, `"..."` when code has `!` or special chars (escape inner `"` with `\"`).
+- **Async**: test/build return `job_id` → `unicli poll <job_id>`
+- **Wait after transitions**: `play`, `stop`, `refresh` return immediately — use `wait` before subsequent operations:
+  - `unicli editor play && unicli wait playing`
+  - `unicli editor stop && unicli wait not_playing`
+  - `unicli asset refresh && unicli wait not_compiling`
 
 ---
 
@@ -54,7 +61,7 @@ Returns: `{"port":18960,"project":"MyGame","unity":"6000.3.7f1","platform":"Stan
 unicli eval lua '<code>'                 # Lua — preferred (no compilation, fast)
 unicli eval cs '<code>'                  # C# — for full .NET API, generics, etc.
 unicli eval cs '<code>' --using <ns>     # add using namespace (repeatable)
-cat file | unicli eval cs -              # stdin pipe
+cat file | unicli eval cs -              # stdin pipe (POSIX `-` convention)
 ```
 
 **Prefer Lua** for simple queries and property access. Use C# only when Lua can't do it (generics, LINQ, complex .NET API).
@@ -66,6 +73,8 @@ unicli eval lua 'return CS.UnityEngine.Application.dataPath'
 unicli eval lua 'return CS.UnityEngine.SceneManagement.SceneManager.GetActiveScene().name'
 unicli eval lua 'return CS.UnityEditor.EditorApplication.isPlaying'
 ```
+
+Quoting: `'...'` for code with `"`, `"..."` for code with `!` (escape `"` → `\"`).
 
 ---
 
@@ -124,6 +133,8 @@ Primitives: `cube`, `sphere`, `capsule`, `cylinder`, `plane`, `quad`
 | `refresh` | | | Refresh AssetDatabase |
 | `save` | | `--all` or `--id <id>` | Save assets |
 
+After editing .cs files: `unicli asset refresh && unicli wait not_compiling`
+
 ---
 
 ## editor — Editor Control
@@ -144,6 +155,8 @@ Primitives: `cube`, `sphere`, `capsule`, `cylinder`, `plane`, `quad`
 | `window close` | `<id>` | | Close window |
 | `modal` | | | Detect native modal (Win32) |
 | `modal click` | `<button>` | | Click modal button |
+
+Modal is auto-detected during commands. Manual: `unicli editor modal` → `unicli editor modal click "Save"`
 
 ---
 
@@ -170,8 +183,10 @@ Common queries: `t:Material`, `t:Prefab`, `t:Scene`, `t:Script`, `Player`
 | Command | Args | Options | Description |
 |---------|------|---------|-------------|
 | `capture` | `game\|scene\|window <id>` | `--path`, `--scale` | Screenshot |
-| `record start` | | `--path`, `--fps`, `--duration` | Start recording (play mode only) |
+| `record start` | | `--path`, `--fps`, `--duration` | Start recording |
 | `record stop` | | | Stop recording |
+
+`capture game` and `record` require play mode.
 
 ---
 
@@ -240,18 +255,3 @@ All results serialized via `ResultSerializer`:
 
 **snake_case keys**. Unity objects return identification only — for full data use `eval` with `JsonUtility.ToJson()`.
 
----
-
-## jq Examples
-
-```bash
-unicli scene root | jq '.result[].name'
-unicli scene root | jq '[.result[] | select(.active==true)]'
-unicli scene root | jq '.result[] | select(.tag=="Player")'
-unicli package list | jq '[.result[] | select(.source=="Local")]'
-unicli editor window list | jq '.result[].title'
-
-# Chain: find → destroy
-ID=$(unicli scene root | jq -r '.result[] | select(.name=="Player") | .instance_id')
-unicli object destroy $ID
-```

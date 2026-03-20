@@ -2,8 +2,11 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
+using System.Threading;
+using System.Threading.Tasks;
 
 using UnityEngine;
+using UnityEngine.Rendering;
 
 using UnityEditor;
 using UnityEditor.Recorder;
@@ -35,7 +38,7 @@ namespace inonego.UniCLI.Group
       /// </summary>
       // ----------------------------------------------------------------------
       [CLICommand("", "Capture game/scene/window")]
-      public static object Capture(CommandArgs args)
+      public static async Awaitable<object> Capture(CommandArgs args)
       {
          string target = args.Arg(0);
 
@@ -55,7 +58,7 @@ namespace inonego.UniCLI.Group
 
          if (target == "game")
          {
-            return CaptureGameView(path, scale);
+            return await CaptureGameView(path, scale);
          }
          else if (target == "scene")
          {
@@ -79,29 +82,58 @@ namespace inonego.UniCLI.Group
       /// Captures the Game view.
       /// </summary>
       // ------------------------------------------------------------
-      private static object CaptureGameView(string path, float scale)
+      private static async Awaitable<object> CaptureGameView(string path, float scale)
       {
-         int superSize = Mathf.Max(1, Mathf.RoundToInt(scale));
-
-         var tex = ScreenCapture.CaptureScreenshotAsTexture(superSize);
-
-         if (tex == null)
-         {
-            throw new CLIException(ErrorCode.INTERNAL_ERROR, "Failed to capture game view.");
-         }
+         await Awaitable.MainThreadAsync();
 
          if (string.IsNullOrEmpty(path))
          {
             path = $"Screenshots/capture_game_{DateTime.Now:yyyyMMdd_HHmmss}.png";
          }
 
+         int superSize = Mathf.Max(1, Mathf.RoundToInt(scale));
+
+         var tcs = new TaskCompletionSource<Texture2D>();
+
+         void OnEndCamera(ScriptableRenderContext ctx, Camera cam)
+         {
+            if (cam != Camera.main)
+            {
+               return;
+            }
+
+            RenderPipelineManager.endCameraRendering -= OnEndCamera;
+
+            var tex = ScreenCapture.CaptureScreenshotAsTexture(superSize);
+
+            tcs.TrySetResult(tex);
+         }
+
+         RenderPipelineManager.endCameraRendering += OnEndCamera;
+
+         // Force Game View to repaint
+         var gameViewType = typeof(EditorWindow).Assembly.GetType("UnityEditor.GameView");
+         var gameView = EditorWindow.GetWindow(gameViewType, false, null, false);
+
+         if (gameView != null)
+         {
+            gameView.Repaint();
+         }
+
+         var captured = await tcs.Task;
+
+         if (captured == null)
+         {
+            throw new CLIException(ErrorCode.INTERNAL_ERROR, "Failed to capture game view.");
+         }
+
          Directory.CreateDirectory(Path.GetDirectoryName(path));
-         File.WriteAllBytes(path, tex.EncodeToPNG());
+         File.WriteAllBytes(path, captured.EncodeToPNG());
 
-         int width  = tex.width;
-         int height = tex.height;
+         int width  = captured.width;
+         int height = captured.height;
 
-         UnityEngine.Object.DestroyImmediate(tex);
+         UnityEngine.Object.DestroyImmediate(captured);
 
          return new JObject
          {
