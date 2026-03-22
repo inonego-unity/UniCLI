@@ -9,4 +9,8 @@
     <Nullable>disable</Nullable>
   </PropertyGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\lib\InoCLI\src\InoCLI\InoCLI.csproj" />
+  </ItemGroup>
+
 </Project>

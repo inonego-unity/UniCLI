@@ -1,6 +1,6 @@
 {
   "name": "com.inonego.uni-cli",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "displayName": "UniCLI",
   "description": "CLI tools for Unity Editor",
   "unity": "6000.0",
