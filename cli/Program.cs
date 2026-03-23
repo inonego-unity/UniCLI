@@ -3,7 +3,9 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Net;
 using System.Net.Sockets;
+using System.Text;
 using System.Text.Json;
 using System.Threading;
 
@@ -29,61 +31,34 @@ namespace UniCLI
             return 1;
          }
 
-         // Parse arguments (no schema — server validates)
-         var parser = new ArgParser(new[] { "port", "project", "timeout", "pretty" });
-         var parsed = parser.Parse(args);
+         var parsed = new ArgParser().Parse(args);
 
-         if (parsed.HelpRequested && parsed.Group == null)
+         if (parsed.Positionals.Count == 0)
          {
             PrintUsage();
-            return 0;
+            return parsed.Has("help") ? 0 : 1;
          }
 
-         // Resolve global options
-         int    port    = -1;
-         string project = null;
-         bool   pretty  = false;
-         int    timeout = -1;
-
-         if (parsed.GlobalOptions.ContainsKey("port"))
-         {
-            int.TryParse(parsed.GlobalOptions["port"].ToString(), out port);
-         }
-
-         if (parsed.GlobalOptions.ContainsKey("project"))
-         {
-            project = parsed.GlobalOptions["project"].ToString();
-         }
-
-         if (parsed.GlobalOptions.ContainsKey("pretty"))
-         {
-            pretty = true;
-         }
-
-         if (parsed.GlobalOptions.ContainsKey("timeout"))
-         {
-            int.TryParse(parsed.GlobalOptions["timeout"].ToString(), out timeout);
-         }
+         // Resolve options
+         string group   = parsed[0];
+         int    port    = parsed.Has("port") ? parsed.GetInt("port") : -1;
+         string project = parsed["project"];
+         bool   pretty  = parsed.Has("pretty");
+         int    timeout = parsed.Has("timeout") ? parsed.GetInt("timeout") : -1;
 
          if (port < 0)
          {
             port = GetPort(project);
          }
 
-         if (parsed.Group == null)
-         {
-            PrintUsage();
-            return 0;
-         }
-
          // wait is handled client-side (survives domain reload)
-         if (parsed.Group == "wait")
+         if (group == "wait")
          {
-            return HandleWait(parsed.Positional, port, timeout, pretty);
+            return HandleWait(parsed.Positionals, port, timeout, pretty);
          }
 
          // Replace "-" with stdin content
-         string stdinError = StdinReader.ReadAll(parsed.Positional);
+         string stdinError = StdinReader.ReadAll(parsed.Positionals);
 
          if (stdinError != null)
          {
@@ -91,10 +66,10 @@ namespace UniCLI
             return 1;
          }
 
-         // Forward --help to server as an option
-         if (parsed.HelpRequested)
+         // Forward --help to server
+         if (parsed.Has("help"))
          {
-            parsed.Options["help"] = true;
+            parsed.Optionals["help"] = new List<string>();
          }
 
          // Build and send request
@@ -133,9 +108,10 @@ namespace UniCLI
       /// <br/> Runs client-side to survive domain reloads.
       /// </summary>
       // ----------------------------------------------------------------------
-      static int HandleWait(List<string> positional, int port, int timeoutSeconds, bool pretty)
+      static int HandleWait(List<string> positionals, int port, int timeoutSeconds, bool pretty)
       {
-         string condition = positional.Count > 0 ? positional[0] : null;
+         // positionals[0] = "wait", positionals[1] = condition
+         string condition = positionals.Count > 1 ? positionals[1] : null;
 
          if (string.IsNullOrEmpty(condition))
          {
@@ -144,7 +120,7 @@ namespace UniCLI
          }
 
          var    start    = DateTime.Now;
-         string stateReq = "{\"group\":\"editor\",\"command\":\"state\"}";
+         string stateReq = "{\"positionals\":[\"editor\",\"state\"]}";
 
          while (true)
          {
@@ -332,7 +308,7 @@ namespace UniCLI
          Console.WriteLine("  wait                   Wait for condition");
          Console.WriteLine("  ping                   Server connectivity");
          Console.WriteLine();
-         Console.WriteLine("Global options:");
+         Console.WriteLine("Options:");
          Console.WriteLine("  --port <n>             Server port (default: auto-discover, env: UNICLI_PORT)");
          Console.WriteLine("  --project <name>       Select Unity project by name");
          Console.WriteLine("  --pretty               Pretty-print JSON output");
