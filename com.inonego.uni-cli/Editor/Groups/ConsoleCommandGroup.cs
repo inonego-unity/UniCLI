@@ -8,11 +8,12 @@ using UnityEngine;
 using UnityEditor;
 using UnityEditor.Compilation;
 
+using InoCLI;
+
 using Newtonsoft.Json.Linq;
 
 namespace inonego.UniCLI.Group
 {
-   using Attribute;
    using Core;
 
    // ============================================================
@@ -20,9 +21,8 @@ namespace inonego.UniCLI.Group
    /// Console log capture and filtering.
    /// </summary>
    // ============================================================
-   [CLIGroup("console", "Console log access")]
    [InitializeOnLoad]
-   public class ConsoleCommandGroup
+   public static class ConsoleCommandGroup
    {
 
    #region Fields
@@ -98,11 +98,11 @@ namespace inonego.UniCLI.Group
       /// Reads console log entries with optional filtering.
       /// </summary>
       // ------------------------------------------------------------
-      [CLICommand("", "Read console logs")]
+      [CLICommand("console", description = "Read console logs")]
       public static object Read(CommandArgs args)
       {
-         string typeFilter = args.Option("type");
-         string sinceStr   = args.Option("since");
+         string typeFilter = args["type"];
+         string sinceStr   = args["since"];
 
          DateTime? since = null;
 
@@ -147,7 +147,7 @@ namespace inonego.UniCLI.Group
       /// Clears the log buffer.
       /// </summary>
       // ------------------------------------------------------------
-      [CLICommand("clear", "Clear console log buffer")]
+      [CLICommand("console", "clear", description = "Clear console log buffer")]
       public static object Clear(CommandArgs args)
       {
          lock (bufferLock)

@@ -6,18 +6,18 @@ user-invocable: false
 
 # UniCLI
 
-`unicli <group> [command] [args...] [--options]` — all commands return JSON.
+`unicli <command> [args...] [--options]` — all commands return JSON.
 
 ## Global Options
 
 | Option | Description |
 |--------|-------------|
-| `--port <n>` | Server port (overrides auto-discovery) |
+| `--pipe <name>` | Named Pipe name (overrides auto-discovery) |
 | `--project <name>` | Select Unity project by name (substring match) |
 | `--pretty` | Pretty-print JSON output |
 | `--timeout <s>` | Connection/wait timeout in seconds |
 
-Port resolution: `--port` > `UNICLI_PORT` env > instance registry (`~/.unicli/instances/`) > 18960
+Pipe resolution: `--pipe` > `UNICLI_PIPE` env > instance registry (`~/.unicli/instances/`) > pipe discovery
 
 ## Output Format
 
@@ -39,10 +39,7 @@ unicli scene root | jq '.result[] | select(.tag=="Player") | .instance_id'
 - **Get/Set**: omit value → get, provide → set
 - **IDs**: positional if required, `--id` if optional. Negative IDs work as-is.
 - **Async**: test/build return `job_id` → `unicli poll <job_id>`
-- **Wait after transitions**: `play`, `stop`, `refresh` return immediately — use `wait` before subsequent operations:
-  - `unicli editor play && unicli wait playing`
-  - `unicli editor stop && unicli wait not_playing`
-  - `unicli asset refresh && unicli wait not_compiling`
+- **Auto-wait**: `editor play`, `editor stop`, `asset refresh` automatically wait for completion (domain reload safe). Use `--no-wait` to skip.
 
 ---
 
@@ -51,7 +48,7 @@ unicli scene root | jq '.result[] | select(.tag=="Player") | .instance_id'
 ```bash
 unicli ping
 ```
-Returns: `{"port":18960,"project":"MyGame","unity":"6000.3.7f1","platform":"StandaloneWindows64"}`
+Returns: `{"pipe":"unicli-1234","project":"MyGame","unity":"6000.3.7f1","platform":"StandaloneWindows64"}`
 
 ---
 
@@ -133,7 +130,7 @@ Primitives: `cube`, `sphere`, `capsule`, `cylinder`, `plane`, `quad`
 | `refresh` | | | Refresh AssetDatabase |
 | `save` | | `--all` or `--id <id>` | Save assets |
 
-After editing .cs files: `unicli asset refresh && unicli wait not_compiling`
+After editing .cs files: `unicli asset refresh` (auto-waits for compilation)
 
 ---
 
@@ -155,6 +152,7 @@ After editing .cs files: `unicli asset refresh && unicli wait not_compiling`
 | `window close` | `<id>` | | Close window |
 | `modal` | | | Detect native modal (Win32) |
 | `modal click` | `<button>` | | Click modal button |
+| `sdb` | | | Get SDB debugger port for MonoDebug |
 
 Modal is auto-detected during commands. Manual: `unicli editor modal` → `unicli editor modal click "Save"`
 
@@ -255,3 +253,23 @@ All results serialized via `ResultSerializer`:
 
 **snake_case keys**. Unity objects return identification only — for full data use `eval` with `JsonUtility.ToJson()`.
 
+---
+
+## Debugging (MonoDebug)
+
+Use with [MonoDebug](https://github.com/inonego-unity/MonoDebug) for runtime debugging without adding Debug.Log to code — set breakpoints, inspect variables, evaluate expressions at runtime.
+
+```bash
+# Start
+unicli editor sdb                    # get SDB debugger port
+monodebug attach <port>              # attach (run monodebug --help for details)
+
+# After each debug session
+monodebug flow continue              # resume execution
+monodebug profile disable --all      # disable all debug profiles
+
+# When completely done
+monodebug detach                     # disconnect (requires Unity restart to reattach)
+```
+
+Requires: Edit > Preferences > External Tools > Editor Attaching enabled + Unity restart.

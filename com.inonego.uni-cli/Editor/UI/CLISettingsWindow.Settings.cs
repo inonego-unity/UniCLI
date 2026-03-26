@@ -37,13 +37,12 @@ namespace inonego.UniCLI
 
          LoadUXML(SettingsUXML, tab);
 
-         portField       = tab.Q<IntegerField>("field-port");
          autoStartToggle = tab.Q<Toggle>("field-auto-start");
          enabledToggle   = tab.Q<Toggle>("field-enabled");
          statusRow       = tab.Q("status-row");
          statusDot       = tab.Q("status-dot");
          statusLabel     = tab.Q<Label>("status-label");
-         portLabel       = tab.Q<Label>("port-label");
+         pipeLabel       = tab.Q<Label>("pipe-label");
          startStopButton = tab.Q<Button>("btn-start-stop");
 
          var restartButton = tab.Q<Button>("btn-restart");
@@ -55,11 +54,7 @@ namespace inonego.UniCLI
          skillSyncButton     = tab.Q<Button>("btn-skill-sync");
          skillRemoveButton   = tab.Q<Button>("btn-skill-remove");
 
-         if (portField != null)
-         {
-            portField.value = CLISettings.Port;
-            portField.RegisterValueChangedCallback(evt => CLISettings.Port = evt.newValue);
-         }
+         // Port field removed — Named Pipe uses PID-based name
 
          if (autoStartToggle != null)
          {
@@ -175,7 +170,6 @@ namespace inonego.UniCLI
 
          CLISettings.ResetToDefaults();
 
-         portField?.SetValueWithoutNotify(CLISettings.Port);
          autoStartToggle?.SetValueWithoutNotify(CLISettings.AutoStart);
          enabledToggle?.SetValueWithoutNotify(CLISettings.Enabled);
       }
@@ -207,10 +201,10 @@ namespace inonego.UniCLI
             statusLabel.EnableInClassList("cli-status-label--stopped", !running);
          }
 
-         if (portLabel != null)
+         if (pipeLabel != null)
          {
-            portLabel.text = running ? $"Port {CLIServer.Port}" : "—";
-            portLabel.style.display = running ? DisplayStyle.Flex : DisplayStyle.None;
+            pipeLabel.text = running ? CLIServer.PipeName : "—";
+            pipeLabel.style.display = running ? DisplayStyle.Flex : DisplayStyle.None;
          }
 
          if (startStopButton != null)

@@ -13,11 +13,12 @@ using UnityEditor.Recorder;
 using UnityEditor.Recorder.Encoder;
 using UnityEditor.Recorder.Input;
 
+using InoCLI;
+
 using Newtonsoft.Json.Linq;
 
 namespace inonego.UniCLI.Group
 {
-   using Attribute;
    using Core;
 
    // ============================================================
@@ -25,8 +26,7 @@ namespace inonego.UniCLI.Group
    /// Screen capture and recording commands.
    /// </summary>
    // ============================================================
-   [CLIGroup("capture", "Screen capture")]
-   public class CaptureCommandGroup
+   public static class CaptureCommandGroup
    {
 
    #region Commands
@@ -37,19 +37,19 @@ namespace inonego.UniCLI.Group
       /// <br/> or a specific editor window by instance ID.
       /// </summary>
       // ----------------------------------------------------------------------
-      [CLICommand("", "Capture game/scene/window")]
+      [CLICommand("capture", description = "Capture game/scene/window")]
       public static async Awaitable<object> Capture(CommandArgs args)
       {
-         string target = args.Arg(0);
+         string target = args[0];
 
          if (string.IsNullOrEmpty(target))
          {
-            throw new CLIException(ErrorCode.INVALID_ARGS, "Target required: game, scene, or window <id>");
+            throw new CLIException(Constants.Error.InvalidArgs, "Target required: game, scene, or window <id>");
          }
 
-         string path  = args.Option("path");
+         string path  = args["path"];
          float  scale = 1f;
-         string scaleStr = args.Option("scale");
+         string scaleStr = args["scale"];
 
          if (scaleStr != null)
          {
@@ -66,11 +66,11 @@ namespace inonego.UniCLI.Group
          }
          else if (target == "window")
          {
-            int id = args.ArgInt(1);
+            int id = args.GetInt(1, 0);
             return CaptureWindow(id, path, scale);
          }
 
-         throw new CLIException(ErrorCode.INVALID_ARGS, "Target must be: game, scene, or window <id>");
+         throw new CLIException(Constants.Error.InvalidArgs, "Target must be: game, scene, or window <id>");
       }
 
    #endregion
@@ -124,7 +124,7 @@ namespace inonego.UniCLI.Group
 
          if (captured == null)
          {
-            throw new CLIException(ErrorCode.INTERNAL_ERROR, "Failed to capture game view.");
+            throw new CLIException(Constants.Error.InternalError, "Failed to capture game view.");
          }
 
          Directory.CreateDirectory(Path.GetDirectoryName(path));
@@ -154,7 +154,7 @@ namespace inonego.UniCLI.Group
 
          if (sceneView == null)
          {
-            throw new CLIException(ErrorCode.INTERNAL_ERROR, "No active Scene view.");
+            throw new CLIException(Constants.Error.InternalError, "No active Scene view.");
          }
 
          int width  = (int)(sceneView.position.width * scale);
@@ -204,7 +204,7 @@ namespace inonego.UniCLI.Group
 
          if (window == null)
          {
-            throw new CLIException(ErrorCode.INVALID_ARGS, $"Window {id} not found.");
+            throw new CLIException(Constants.Error.InvalidArgs, $"Window {id} not found.");
          }
 
          // Try GUIView.GrabPixels first, fallback to ReadScreenPixel
@@ -356,8 +356,7 @@ namespace inonego.UniCLI.Group
    /// Screen recording commands.
    /// </summary>
    // ============================================================
-   [CLIGroup("record", "Screen recording")]
-   public class RecordCommandGroup
+   public static class RecordCommandGroup
    {
 
    #region Fields
@@ -376,18 +375,18 @@ namespace inonego.UniCLI.Group
       /// Starts screen recording using Unity Recorder.
       /// </summary>
       // ----------------------------------------------------------------------
-      [CLICommand("start", "Start recording")]
+      [CLICommand("record", "start", description = "Start recording")]
       public static object Start(CommandArgs args)
       {
          if (activeController != null && activeController.IsRecording())
          {
-            throw new CLIException(ErrorCode.INVALID_ARGS, "Recording already in progress.");
+            throw new CLIException(Constants.Error.InvalidArgs, "Recording already in progress.");
          }
 
-         string path   = args.Option("path", $"Recordings/recording_{DateTime.Now:yyyyMMdd_HHmmss}");
-         int    fps    = args.OptionInt("fps", 30);
+         string path   = args.Get("path", $"Recordings/recording_{DateTime.Now:yyyyMMdd_HHmmss}");
+         int    fps    = args.GetInt("fps", 30);
          float  duration = 0f;
-         string durStr = args.Option("duration");
+         string durStr = args["duration"];
 
          if (durStr != null)
          {
@@ -439,12 +438,12 @@ namespace inonego.UniCLI.Group
       /// Stops the active recording.
       /// </summary>
       // ------------------------------------------------------------
-      [CLICommand("stop", "Stop recording")]
+      [CLICommand("record", "stop", description = "Stop recording")]
       public static object Stop(CommandArgs args)
       {
          if (activeController == null || !activeController.IsRecording())
          {
-            throw new CLIException(ErrorCode.INVALID_ARGS, "No recording in progress.");
+            throw new CLIException(Constants.Error.InvalidArgs, "No recording in progress.");
          }
 
          EditorApplication.update -= OnAutoStopUpdate;

@@ -34,9 +34,8 @@ namespace inonego.UniCLI
       private VisualElement  statusRow       = null;
       private VisualElement  statusDot       = null;
       private Label          statusLabel     = null;
-      private Label          portLabel       = null;
+      private Label          pipeLabel       = null;
       private Button         startStopButton = null;
-      private IntegerField   portField       = null;
       private Toggle         autoStartToggle = null;
       private Toggle         enabledToggle   = null;
 

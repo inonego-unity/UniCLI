@@ -1,28 +1,26 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Runtime.InteropServices;
-using System.Text.RegularExpressions;
 
 using UnityEngine;
 
 using UnityEditor;
 using UnityEditor.TestTools.TestRunner.Api;
 
+using InoCLI;
+
 using Newtonsoft.Json.Linq;
 
 namespace inonego.UniCLI.Group
 {
-   using Attribute;
    using Core;
 
    // ============================================================
    /// <summary>
-   /// Test, build, poll, and wait commands.
+   /// Test runner commands.
    /// </summary>
    // ============================================================
-   [CLIGroup("test", "Test management")]
-   public class TestCommandGroup
+   public static class TestCommandGroup
    {
 
    #region Internal data
@@ -104,10 +102,10 @@ namespace inonego.UniCLI.Group
 
    #region Commands
 
-      [CLICommand("run", "Run tests asynchronously")]
+      [CLICommand("test", "run", description = "Run tests asynchronously")]
       public static object Run(CommandArgs args)
       {
-         var testMode = ParseTestMode(args.Option("mode"));
+         var testMode = ParseTestMode(args["mode"]);
          var jobId    = JobTracker.Create();
          var callbacks = new TestRunCallbacks(jobId, Api);
 
@@ -123,10 +121,10 @@ namespace inonego.UniCLI.Group
          return new JObject { ["job_id"] = jobId };
       }
 
-      [CLICommand("list", "List available tests")]
+      [CLICommand("test", "list", description = "List available tests")]
       public static object List(CommandArgs args)
       {
-         var testMode = ParseTestMode(args.Option("mode"), defaultBoth: false);
+         var testMode = ParseTestMode(args["mode"], defaultBoth: false);
          var jobId    = JobTracker.Create();
 
          Api.RetrieveTestList(testMode, root =>
@@ -186,124 +184,5 @@ namespace inonego.UniCLI.Group
 
    #endregion
 
-   }
-
-   // ============================================================
-   /// <summary>
-   /// Build command.
-   /// </summary>
-   // ============================================================
-   [CLIGroup("build", "Project build")]
-   public class BuildCommandGroup
-   {
-      [CLICommand("", "Build the project")]
-      public static object Build(CommandArgs args)
-      {
-         string target = args.Option("target");
-         string path   = args.Option("path", "Builds/Build");
-         bool   run    = args.Flag("run");
-         var    jobId  = JobTracker.Create();
-
-         BuildTarget buildTarget = EditorUserBuildSettings.activeBuildTarget;
-
-         if (target != null && Enum.TryParse<BuildTarget>(target, true, out var parsed))
-         {
-            buildTarget = parsed;
-         }
-
-         var options = BuildOptions.None;
-
-         if (run)
-         {
-            options |= BuildOptions.AutoRunPlayer;
-         }
-
-         var scenes = new List<string>();
-
-         foreach (var scene in EditorBuildSettings.scenes)
-         {
-            if (scene.enabled)
-            {
-               scenes.Add(scene.path);
-            }
-         }
-
-         EditorApplication.delayCall += () =>
-         {
-            try
-            {
-               // Save open scenes to prevent modal dialog
-               UnityEditor.SceneManagement.EditorSceneManager.SaveOpenScenes();
-
-               var report = BuildPipeline.BuildPlayer(scenes.ToArray(), path, buildTarget, options);
-               JobTracker.Complete(jobId, new { result = report.summary.result.ToString() });
-            }
-            catch (Exception ex)
-            {
-               JobTracker.Fail(jobId, ex.Message);
-            }
-         };
-
-         // Focus editor window so delayCall fires even when in background
-         FocusEditorWindow();
-
-         return new JObject { ["job_id"] = jobId };
-      }
-
-      [DllImport("user32.dll")]
-      [return: MarshalAs(UnmanagedType.Bool)]
-      private static extern bool SetForegroundWindow(IntPtr hWnd);
-
-      [DllImport("user32.dll")]
-      private static extern IntPtr GetActiveWindow();
-
-      private static void FocusEditorWindow()
-      {
-         try
-         {
-            var process = System.Diagnostics.Process.GetCurrentProcess();
-            SetForegroundWindow(process.MainWindowHandle);
-         }
-         catch {}
-      }
-   }
-
-   // ============================================================
-   /// <summary>
-   /// Poll async job status.
-   /// </summary>
-   // ============================================================
-   [CLIGroup("poll", "Poll async job status")]
-   public class PollCommandGroup
-   {
-      [CLICommand("", "Poll job status")]
-      public static object Poll(CommandArgs args)
-      {
-         string jobId = args.Arg(0);
-
-         if (string.IsNullOrEmpty(jobId))
-         {
-            throw new CLIException(ErrorCode.INVALID_ARGS, "Job ID required.");
-         }
-
-         var job = JobTracker.Get(jobId);
-
-         if (job == null)
-         {
-            throw new CLIException(ErrorCode.INVALID_ARGS, $"Job not found: {jobId}");
-         }
-
-         var result = new JObject
-         {
-            ["status"] = job.Status.ToString().ToLower()
-         };
-
-         if (job.Result != null)
-         {
-            result["result"] = JToken.FromObject(job.Result);
-         }
-
-         return result;
-      }
    }
 }

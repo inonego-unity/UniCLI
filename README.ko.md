@@ -20,11 +20,11 @@ UniCLI는 AI 에이전트(Claude 등)와 스크립트가 Unity Editor를 단일 
 ## 아키텍처
 
 ```
-Claude / 스크립트 → unicli.exe → TCP → Unity Editor
+Claude / 스크립트 → unicli.exe → Named Pipe → Unity Editor
 ```
 
-- **`unicli.exe`** — .NET 8 CLI 클라이언트. 얇은 TCP 프록시.
-- **Unity 패키지** — 에디터 내부 TCP 서버. 포트 자동 탐색, 도메인 리로드 생존.
+- **`unicli.exe`** — .NET 8 CLI 클라이언트. Named Pipe로 명령 전달.
+- **Unity 패키지** — 에디터 내부 Named Pipe 서버. PID 기반 파이프 이름, 도메인 리로드 생존.
 - **인스턴스 레지스트리** — `~/.unicli/instances/*.json`. 여러 에디터, 자동 탐색.
 
 ## 저장소 구조
@@ -32,7 +32,9 @@ Claude / 스크립트 → unicli.exe → TCP → Unity Editor
 ```
 UniCLI/
 ├── com.inonego.uni-cli/   ← Unity Editor 플러그인 (UPM)
-└── cli/                   ← CLI 클라이언트 (.NET 8)
+│   └── Plugins/           ← InoCLI.dll, InoIPC.dll (netstandard2.1)
+├── cli/                   ← CLI 클라이언트 (.NET 8)
+└── lib/                   ← 서브모듈 (InoCLI, InoIPC)
 ```
 
 ## 설치
@@ -57,8 +59,6 @@ https://github.com/inonego-unity/UniCLI.git?path=/com.inonego.uni-cli
 ```
 
 > **UniLua 필수** — UniCLI와 함께 또는 먼저 설치하세요. 없으면 `eval lua`를 사용할 수 없습니다.
->
-> OpenUPM 지원 예정. 지원 시: `openupm add com.inonego.uni-cli`
 
 ### 2. Claude 스킬 (선택)
 
@@ -97,7 +97,7 @@ unicli go create Player --primitive cube
 cat script.cs | unicli eval cs -
 ```
 
-## 명령어 (16개 그룹)
+## 명령어
 
 ### eval — 코드 실행
 
@@ -107,8 +107,6 @@ unicli eval cs '<code>' --using Ns   # 추가 using
 unicli eval lua '<code>'             # Lua (UniLua, 인터프리터 — 더 빠른 실행)
 cat file.cs | unicli eval cs -       # stdin 파이프 (POSIX "-")
 ```
-
-> **Lua가 더 빠릅니다** — C#은 매 호출마다 런타임 컴파일이 필요하지만, Lua는 인터프리터로 즉시 실행됩니다. 빠른 조회에는 Lua, 전체 .NET API가 필요한 복잡한 작업에는 C#을 사용하세요.
 
 ### scene — 씬 관리
 
@@ -172,10 +170,9 @@ unicli editor window list            # 열린 윈도우 목록
 unicli editor window focus <id>      # 윈도우 포커스
 unicli editor window close <id>      # 윈도우 닫기
 unicli editor modal                  # 네이티브 모달 감지
-unicli editor modal click "<button>" # 모달 버튼 클릭 (예: "Save", "Don't Save")
+unicli editor modal click "<button>" # 모달 버튼 클릭
+unicli editor sdb                    # MonoDebug용 SDB 디버거 포트 확인
 ```
-
-> 모달 다이얼로그(예: "씬 저장?")는 메인 스레드를 블로킹합니다. `editor modal`은 Win32 API로 메인 스레드 없이 감지합니다. 모달을 유발하는 명령은 자동으로 `MODAL` 에러와 버튼 정보를 반환합니다.
 
 ### console — 콘솔 로그
 
@@ -204,7 +201,7 @@ unicli record stop                   # 녹화 중지
 
 ```bash
 unicli prefab load <path>            # 편집용 로드
-unicli prefab unload <root_id>       # 언로드 (load에서 받은 root_id)
+unicli prefab unload <root_id>       # 언로드
 unicli prefab save <id> <path>       # 프리팹으로 저장
 unicli prefab apply <id>             # 오버라이드 적용
 unicli prefab revert <id>            # 오버라이드 되돌리기
@@ -219,36 +216,53 @@ unicli package install <id>          # 설치 (이름 또는 git URL)
 unicli package rm <id>               # 제거
 ```
 
-### test / build / poll / wait — 비동기 작업
+### test — 테스트 실행
 
 ```bash
 unicli test run                      # 테스트 실행 [--mode edit|play] → job_id
 unicli test list                     # 테스트 목록 [--mode edit|play] → job_id
+```
+
+### build — 프로젝트 빌드
+
+```bash
 unicli build                         # 빌드 [--target] [--path] [--run] → job_id
+```
+
+### poll — 비동기 작업 상태
+
+```bash
 unicli poll <job_id>                 # 작업 상태 조회
+```
+
+### wait — 조건 대기
+
+```bash
 unicli wait <condition>              # 조건 대기 [--timeout <초>]
 ```
 
-> 대기 조건: `not_compiling`, `not_playing`, `compiling`, `playing`
+> 조건: `not_compiling`, `not_playing`, `compiling`, `playing`
+> 참고: `editor play`, `editor stop`, `asset refresh`는 기본적으로 자동 대기합니다. `--no-wait`로 건너뛸 수 있습니다.
 
 ### ping — 연결 확인
 
 ```bash
 unicli ping
-# {"success":true,"result":{"port":18960,"project":"MyGame","unity":"6000.3.7f1","platform":"StandaloneWindows64"}}
+# {"success":true,"result":{"pipe":"unicli-1234","project":"MyGame","unity":"6000.3.7f1","platform":"StandaloneWindows64"}}
 ```
 
 ## 글로벌 옵션
 
 | 옵션 | 설명 |
 |------|------|
-| `--port <n>` | 서버 포트 (자동 탐색 대신 직접 지정) |
+| `--pipe <name>` | Named Pipe 이름 (자동 탐색 대신 직접 지정) |
 | `--project <name>` | 프로젝트 이름으로 선택 (부분 문자열 매칭) |
 | `--pretty` | JSON 포맷팅 출력 |
 | `--timeout <초>` | 연결/대기 타임아웃 |
+| `--no-wait` | 도메인 리로드 명령의 자동 대기 건너뛰기 |
 | `--help` | 도움말 |
 
-**포트 해석 순서**: `--port` > `UNICLI_PORT` 환경변수 > 인스턴스 레지스트리 > 기본값(18960)
+**파이프 해석 순서**: `--pipe` > `UNICLI_PIPE` 환경변수 > 인스턴스 레지스트리 > 파이프 탐색
 
 ## 출력 형식
 
@@ -263,27 +277,24 @@ unicli ping
 
 Unity Editor에서 **Window > UniCLI Settings** 메뉴:
 
-- **Port**: TCP 서버 기본 포트 (기본값: 18960, 사용 중이면 자동 증가)
 - **Auto-Start**: 에디터 시작 시 서버 자동 실행
 - **Enabled**: 마스터 토글
 
 ## 커스텀 명령
 
-어트리뷰트 패턴으로 직접 명령을 추가할 수 있습니다:
+InoCLI의 `[CLICommand]` 어트리뷰트로 직접 명령을 추가할 수 있습니다:
 
 ```csharp
-using inonego.UniCLI.Attribute;
-using inonego.UniCLI.Core;
+using InoCLI;
 
 namespace MyProject
 {
-   [CLIGroup("my_tools", "My custom tools")]
-   public class MyToolsGroup
+   public static class MyTools
    {
-      [CLICommand("hello", "Say hello")]
+      [CLICommand("my_tools", "hello", description = "Say hello")]
       public static object Hello(CommandArgs args)
       {
-         string name = args.Arg(0);
+         string name = args[0];
          return new { message = $"Hello, {name}!" };
       }
    }
@@ -295,6 +306,13 @@ unicli my_tools hello World
 # {"success":true,"result":{"message":"Hello, World!"}}
 ```
 
+## 의존성
+
+| 의존성 | 용도 | 라이선스 |
+|--------|------|---------|
+| [InoCLI](https://github.com/inonego/InoCLI) | CLI 프레임워크 (파서 + 커맨드 레지스트리) | MIT |
+| [InoIPC](https://github.com/inonego/InoIPC) | IPC 프레임워크 (Named Pipe + 프레임 프로토콜) | MIT |
+
 ## 라이선스
 
-[MIT](com.inonego.uni-cli/LICENSE)
+[MIT](LICENSE)

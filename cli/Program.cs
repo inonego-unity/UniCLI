@@ -1,21 +1,18 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
-using System.Net;
-using System.Net.Sockets;
 using System.Text;
 using System.Text.Json;
-using System.Threading;
 
 using InoCLI;
+using InoIPC;
 
 namespace UniCLI
 {
    // ============================================================
    /// <summary>
-   /// UniCLI client. Sends JSON commands to Unity via TCP.
+   /// UniCLI client. Sends JSON commands to Unity via Named Pipe.
    /// </summary>
    // ============================================================
    class Program
@@ -25,45 +22,43 @@ namespace UniCLI
 
       static int Main(string[] args)
       {
-         if (args.Length == 0)
+         if (args.Length == 0 || args[0] == "--help" || args[0] == "-h")
          {
-            PrintUsage();
-            return 1;
+            PrintHelp();
+            return args.Length == 0 ? 1 : 0;
          }
 
          var parsed = new ArgParser().Parse(args);
 
          if (parsed.Positionals.Count == 0)
          {
-            PrintUsage();
+            PrintHelp();
             return parsed.Has("help") ? 0 : 1;
          }
 
          // Resolve options
-         string group   = parsed[0];
-         int    port    = parsed.Has("port") ? parsed.GetInt("port") : -1;
+         string command = parsed[0];
+         string pipe    = parsed["pipe"];
          string project = parsed["project"];
          bool   pretty  = parsed.Has("pretty");
          int    timeout = parsed.Has("timeout") ? parsed.GetInt("timeout") : -1;
 
-         if (port < 0)
+         if (string.IsNullOrEmpty(pipe))
          {
-            port = GetPort(project);
+            pipe = UnityDiscovery.GetPipe(project);
+         }
+
+         if (string.IsNullOrEmpty(pipe))
+         {
+            var error = IpcResponse.Error("CONNECT_FAILED", "No Unity instance found. Is the editor running with UniCLI?");
+            Console.Error.WriteLine(error.RawJson);
+            return 1;
          }
 
          // wait is handled client-side (survives domain reload)
-         if (group == "wait")
+         if (command == "wait")
          {
-            return HandleWait(parsed.Positionals, port, timeout, pretty);
-         }
-
-         // Replace "-" with stdin content
-         string stdinError = StdinReader.ReadAll(parsed.Positionals);
-
-         if (stdinError != null)
-         {
-            Console.Error.WriteLine($"Error: {stdinError}");
-            return 1;
+            return WaitHandler.Handle(parsed.Positionals, pipe, timeout, pretty);
          }
 
          // Forward --help to server
@@ -73,255 +68,106 @@ namespace UniCLI
          }
 
          // Build and send request
-         var request = CliRequest.FromParsedArgs(parsed);
+         string requestJson = JsonSerializer.Serialize
+         (
+            new Dictionary<string, object>
+            {
+               ["positionals"] = parsed.Positionals,
+               ["optionals"]   = parsed.Optionals
+            }
+         );
 
          try
          {
-            using var transport = new TcpTransport(port);
-            var client   = new CliClient(transport);
-            var response = client.SendWithRetry(request, timeout);
+            using var transport = new NamedPipeTransport(pipe);
+            var conn     = new IpcConnection(transport);
+            var response = conn.Request(requestJson);
 
-            JsonOutput.Write(response.RawJson, pretty);
-            return response.ExitCode;
+            if (pretty)
+            {
+               JsonHelper.Write(response.RawJson, true);
+            }
+            else
+            {
+               Console.WriteLine(response.RawJson);
+            }
+
+            // Auto-wait for domain-reload-triggering commands
+            if (response.IsSuccess && !parsed.Has("no-wait"))
+            {
+               string waitCondition = GetAutoWaitCondition(parsed.Positionals);
+
+               if (waitCondition != null)
+               {
+                  WaitHandler.Handle
+                  (
+                     new List<string> { "wait", waitCondition },
+                     pipe, timeout, pretty, silent: true
+                  );
+               }
+            }
+
+            return response.IsSuccess ? 0 : 1;
          }
-         catch (SocketException)
+         catch (TimeoutException)
          {
-            var error = CliResponse.Error("CONNECT_FAILED", "Cannot connect to Unity. Is the editor running with UniCLI?");
-            JsonOutput.WriteError(error.RawJson);
+            var error = IpcResponse.Error("CONNECT_FAILED", "Cannot connect to Unity. Is the editor running with UniCLI?");
+            Console.Error.WriteLine(error.RawJson);
             return 1;
          }
          catch (Exception ex)
          {
-            var error = CliResponse.Error("ERROR", ex.Message);
-            JsonOutput.WriteError(error.RawJson);
+            var error = IpcResponse.Error("ERROR", ex.Message);
+            Console.Error.WriteLine(error.RawJson);
             return 1;
          }
       }
 
    #endregion
 
-   #region Wait
+   #region Auto-Wait
 
       // ----------------------------------------------------------------------
       /// <summary>
-      /// <br/> Polls editor state until a condition is met.
-      /// <br/> Runs client-side to survive domain reloads.
+      /// <br/> Returns the wait condition for commands that trigger
+      /// <br/> domain reload, or null if no auto-wait is needed.
       /// </summary>
       // ----------------------------------------------------------------------
-      static int HandleWait(List<string> positionals, int port, int timeoutSeconds, bool pretty)
+      static string GetAutoWaitCondition(List<string> positionals)
       {
-         // positionals[0] = "wait", positionals[1] = condition
-         string condition = positionals.Count > 1 ? positionals[1] : null;
-
-         if (string.IsNullOrEmpty(condition))
+         if (positionals.Count < 2)
          {
-            Console.Error.WriteLine("Error: Condition required (not_compiling, playing, not_playing, compiling)");
-            return 1;
+            return null;
          }
 
-         var    start    = DateTime.Now;
-         string stateReq = "{\"positionals\":[\"editor\",\"state\"]}";
+         string a = positionals[0];
+         string b = positionals[1];
 
-         while (true)
-         {
-            try
-            {
-               using var transport = new TcpTransport(port);
-               transport.Connect();
+         if (a == "editor" && b == "play")    return "playing";
+         if (a == "editor" && b == "stop")    return "not_playing";
+         if (a == "asset"  && b == "refresh") return "not_compiling";
 
-               FrameProtocol.Send(transport, stateReq);
-
-               string resp   = FrameProtocol.Receive(transport);
-               var    doc    = JsonDocument.Parse(resp);
-               var    result = doc.RootElement.GetProperty("result");
-
-               bool met = condition switch
-               {
-                  "not_compiling" => !result.GetProperty("compiling").GetBoolean(),
-                  "not_playing"   => !result.GetProperty("playing").GetBoolean(),
-                  "compiling"     => result.GetProperty("compiling").GetBoolean(),
-                  "playing"       => result.GetProperty("playing").GetBoolean(),
-                  _ => throw new Exception($"Unknown condition: {condition}")
-               };
-
-               if (met)
-               {
-                  int    elapsed = (int)(DateTime.Now - start).TotalMilliseconds;
-                  var    response = CliResponse.From(new Dictionary<string, object>
-                  {
-                     ["condition"] = condition,
-                     ["elapsed"]   = elapsed
-                  });
-
-                  JsonOutput.Write(response.RawJson, pretty);
-                  return 0;
-               }
-            }
-            catch
-            {
-               // Server down (domain reload) — keep trying
-            }
-
-            if (timeoutSeconds >= 0 && (DateTime.Now - start).TotalSeconds >= timeoutSeconds)
-            {
-               var error = CliResponse.Error("TIMEOUT", "wait timed out");
-               JsonOutput.WriteError(error.RawJson);
-               return 1;
-            }
-
-            Thread.Sleep(500);
-         }
+         return null;
       }
 
    #endregion
 
-   #region Instance Discovery
+   #region Help
 
       // ------------------------------------------------------------
       /// <summary>
-      /// Resolves the server port from multiple sources.
+      /// Prints usage information referencing the skill file.
       /// </summary>
       // ------------------------------------------------------------
-      static int GetPort(string project = null)
+      static void PrintHelp()
       {
-         string envPort = Environment.GetEnvironmentVariable("UNICLI_PORT");
-
-         if (envPort != null && int.TryParse(envPort, out int port))
-         {
-            return port;
-         }
-
-         int discovered = DiscoverInstance(project);
-
-         if (discovered > 0)
-         {
-            return discovered;
-         }
-
-         return 18960;
-      }
-
-      // ----------------------------------------------------------------------
-      /// <summary>
-      /// <br/> Discovers a Unity instance from the registry.
-      /// <br/> Reads ~/.unicli/instances/*.json and matches by project.
-      /// </summary>
-      // ----------------------------------------------------------------------
-      static int DiscoverInstance(string project)
-      {
-         string dir = Path.Combine
+         string exeDir  = AppContext.BaseDirectory;
+         string skillMd = Path.GetFullPath
          (
-            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-            ".unicli", "instances"
+            Path.Combine(exeDir, ".claude", "skills", "inonego-uni-cli", "SKILL.md")
          );
 
-         if (!Directory.Exists(dir))
-         {
-            return 0;
-         }
-
-         var candidates = new List<(int port, string name, long timestamp)>();
-
-         foreach (string file in Directory.GetFiles(dir, "*.json"))
-         {
-            try
-            {
-               string json = File.ReadAllText(file);
-               var    doc  = JsonDocument.Parse(json);
-               var    root = doc.RootElement;
-
-               int    port      = root.GetProperty("port").GetInt32();
-               int    pid       = root.GetProperty("pid").GetInt32();
-               string name      = root.GetProperty("project_name").GetString();
-               string path      = root.GetProperty("project_path").GetString();
-               long   timestamp = root.GetProperty("timestamp").GetInt64();
-
-               try
-               {
-                  Process.GetProcessById(pid);
-               }
-               catch
-               {
-                  File.Delete(file);
-                  continue;
-               }
-
-               if (project != null)
-               {
-                  if (name != null && name.Contains(project, StringComparison.OrdinalIgnoreCase))
-                  {
-                     candidates.Add((port, name, timestamp));
-                  }
-                  else if (path != null && path.Contains(project, StringComparison.OrdinalIgnoreCase))
-                  {
-                     candidates.Add((port, name, timestamp));
-                  }
-               }
-               else
-               {
-                  candidates.Add((port, name, timestamp));
-               }
-            }
-            catch
-            {
-               try { File.Delete(file); } catch {}
-            }
-         }
-
-         if (candidates.Count == 0)
-         {
-            return 0;
-         }
-
-         candidates.Sort((a, b) => b.timestamp.CompareTo(a.timestamp));
-         return candidates[0].port;
-      }
-
-   #endregion
-
-   #region Usage
-
-      // ------------------------------------------------------------
-      /// <summary>
-      /// Prints CLI usage information.
-      /// </summary>
-      // ------------------------------------------------------------
-      static void PrintUsage()
-      {
-         Console.WriteLine("Usage: unicli <group> [command] [args...] [--options]");
-         Console.WriteLine();
-         Console.WriteLine("Groups:");
-         Console.WriteLine("  eval cs|lua '<code>'   Evaluate C#/Lua code");
-         Console.WriteLine("  scene                  Scene management");
-         Console.WriteLine("  go                     GameObject manipulation");
-         Console.WriteLine("  object                 Object operations");
-         Console.WriteLine("  asset                  Asset management");
-         Console.WriteLine("  editor                 Editor control");
-         Console.WriteLine("  console                Console log access");
-         Console.WriteLine("  search                 Unity Search");
-         Console.WriteLine("  capture                Screen capture");
-         Console.WriteLine("  prefab                 Prefab operations");
-         Console.WriteLine("  package                Package management");
-         Console.WriteLine("  test                   Test management");
-         Console.WriteLine("  build                  Project build");
-         Console.WriteLine("  poll                   Poll async job");
-         Console.WriteLine("  wait                   Wait for condition");
-         Console.WriteLine("  ping                   Server connectivity");
-         Console.WriteLine();
-         Console.WriteLine("Options:");
-         Console.WriteLine("  --port <n>             Server port (default: auto-discover, env: UNICLI_PORT)");
-         Console.WriteLine("  --project <name>       Select Unity project by name");
-         Console.WriteLine("  --pretty               Pretty-print JSON output");
-         Console.WriteLine("  --timeout <s>          Connection/wait timeout in seconds");
-         Console.WriteLine("  --help                 Show help");
-         Console.WriteLine();
-         Console.WriteLine("Examples:");
-         Console.WriteLine("  unicli ping");
-         Console.WriteLine("  unicli eval cs 'return 1+1;'");
-         Console.WriteLine("  unicli eval lua 'return CS.UnityEngine.Application.dataPath'");
-         Console.WriteLine("  unicli scene list");
-         Console.WriteLine("  unicli go create Player --primitive cube");
-         Console.WriteLine("  cat script.cs | unicli eval cs -");
+         Console.WriteLine($"UniCLI — Unity Editor CLI for AI Agents\n\nReference: {skillMd}");
       }
 
    #endregion

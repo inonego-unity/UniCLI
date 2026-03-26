@@ -8,11 +8,12 @@ using UnityEditor;
 using UnityEditor.PackageManager;
 using UnityEditor.PackageManager.Requests;
 
+using InoCLI;
+
 using Newtonsoft.Json.Linq;
 
 namespace inonego.UniCLI.Group
 {
-   using Attribute;
    using Core;
 
    // ============================================================
@@ -20,13 +21,12 @@ namespace inonego.UniCLI.Group
    /// UPM package management commands.
    /// </summary>
    // ============================================================
-   [CLIGroup("package", "Package management")]
-   public class PackageCommandGroup
+   public static class PackageCommandGroup
    {
 
    #region Commands
 
-      [CLICommand("list", "List installed packages")]
+      [CLICommand("package", "list", description = "List installed packages")]
       public static object List(CommandArgs args)
       {
          var request = Client.List();
@@ -34,7 +34,7 @@ namespace inonego.UniCLI.Group
 
          if (request.Status == StatusCode.Failure)
          {
-            throw new CLIException(ErrorCode.INTERNAL_ERROR, request.Error.message);
+            throw new CLIException(Constants.Error.InternalError, request.Error.message);
          }
 
          var result = new JArray();
@@ -65,14 +65,14 @@ namespace inonego.UniCLI.Group
          return result;
       }
 
-      [CLICommand("install", "Install a package")]
+      [CLICommand("package", "install", description = "Install a package")]
       public static object Install(CommandArgs args)
       {
-         string id = args.Arg(0);
+         string id = args[0];
 
          if (string.IsNullOrEmpty(id))
          {
-            throw new CLIException(ErrorCode.INVALID_ARGS, "Package ID or git URL required.");
+            throw new CLIException(Constants.Error.InvalidArgs, "Package ID or git URL required.");
          }
 
          var request = Client.Add(id);
@@ -80,7 +80,7 @@ namespace inonego.UniCLI.Group
 
          if (request.Status == StatusCode.Failure)
          {
-            throw new CLIException(ErrorCode.INTERNAL_ERROR, request.Error.message);
+            throw new CLIException(Constants.Error.InternalError, request.Error.message);
          }
 
          return new JObject
@@ -90,14 +90,14 @@ namespace inonego.UniCLI.Group
          };
       }
 
-      [CLICommand("rm", "Remove a package")]
+      [CLICommand("package", "rm", description = "Remove a package")]
       public static object Rm(CommandArgs args)
       {
-         string id = args.Arg(0);
+         string id = args[0];
 
          if (string.IsNullOrEmpty(id))
          {
-            throw new CLIException(ErrorCode.INVALID_ARGS, "Package name required.");
+            throw new CLIException(Constants.Error.InvalidArgs, "Package name required.");
          }
 
          var request = Client.Remove(id);
@@ -105,7 +105,7 @@ namespace inonego.UniCLI.Group
 
          if (request.Status == StatusCode.Failure)
          {
-            throw new CLIException(ErrorCode.INTERNAL_ERROR, request.Error.message);
+            throw new CLIException(Constants.Error.InternalError, request.Error.message);
          }
 
          return new JObject { ["name"] = id };

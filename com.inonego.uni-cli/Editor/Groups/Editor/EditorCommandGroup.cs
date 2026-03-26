@@ -7,11 +7,12 @@ using UnityEngine;
 
 using UnityEditor;
 
+using InoCLI;
+
 using Newtonsoft.Json.Linq;
 
 namespace inonego.UniCLI.Group
 {
-   using Attribute;
    using Core;
 
    // ============================================================
@@ -19,34 +20,33 @@ namespace inonego.UniCLI.Group
    /// Editor control, menu, and window commands.
    /// </summary>
    // ============================================================
-   [CLIGroup("editor", "Editor control")]
-   public class EditorCommandGroup
+   public static class EditorCommandGroup
    {
 
    #region Playmode
 
-      [CLICommand("play", "Enter play mode")]
+      [CLICommand("editor", "play", description = "Enter play mode")]
       public static object Play(CommandArgs args)
       {
          EditorApplication.isPlaying = true;
          return null;
       }
 
-      [CLICommand("stop", "Exit play mode")]
+      [CLICommand("editor", "stop", description = "Exit play mode")]
       public static object Stop(CommandArgs args)
       {
          EditorApplication.isPlaying = false;
          return null;
       }
 
-      [CLICommand("pause", "Toggle pause")]
+      [CLICommand("editor", "pause", description = "Toggle pause")]
       public static object Pause(CommandArgs args)
       {
          EditorApplication.isPaused = !EditorApplication.isPaused;
          return null;
       }
 
-      [CLICommand("step", "Step one frame")]
+      [CLICommand("editor", "step", description = "Step one frame")]
       public static object Step(CommandArgs args)
       {
          EditorApplication.Step();
@@ -57,14 +57,14 @@ namespace inonego.UniCLI.Group
 
    #region Undo
 
-      [CLICommand("undo", "Perform undo")]
+      [CLICommand("editor", "undo", description = "Perform undo")]
       public static object Undo(CommandArgs args)
       {
          UnityEditor.Undo.PerformUndo();
          return null;
       }
 
-      [CLICommand("redo", "Perform redo")]
+      [CLICommand("editor", "redo", description = "Perform redo")]
       public static object Redo(CommandArgs args)
       {
          UnityEditor.Undo.PerformRedo();
@@ -75,7 +75,7 @@ namespace inonego.UniCLI.Group
 
    #region State
 
-      [CLICommand("state", "Get editor state")]
+      [CLICommand("editor", "state", description = "Get editor state")]
       public static object State(CommandArgs args)
       {
          return new JObject
@@ -88,6 +88,44 @@ namespace inonego.UniCLI.Group
 
    #endregion
 
+   #region SDB
+
+      // ----------------------------------------------------------------------
+      /// <summary>
+      /// <br/> Returns the SDB debugger port for MonoDebug attachment.
+      /// <br/> Scans the current process for listening ports in the
+      /// <br/> SDB range (56000+).
+      /// </summary>
+      // ----------------------------------------------------------------------
+      [CLICommand("editor", "sdb", description = "Get SDB debugger port")]
+      public static object Sdb(CommandArgs args)
+      {
+         bool enabled = EditorPrefs.GetBool("AllowAttachedDebuggingOfEditor", false);
+
+         if (!enabled)
+         {
+            throw new CLIException
+            (
+               Constants.Error.NotAvailable,
+               "Editor debugging is disabled. Enable: Edit > Preferences > External Tools > Editor Attaching, then restart Unity."
+            );
+         }
+
+         int pid = System.Diagnostics.Process.GetCurrentProcess().Id;
+
+         // Unity SDB port = 56000 + (pid % 1000)
+         int port = 56000 + (pid % 1000);
+
+         return new JObject
+         {
+            ["port"]    = port,
+            ["pid"]     = pid,
+            ["enabled"] = enabled
+         };
+      }
+
+   #endregion
+
    #region Menu
 
       // ------------------------------------------------------------
@@ -95,25 +133,25 @@ namespace inonego.UniCLI.Group
       /// Executes a menu item.
       /// </summary>
       // ------------------------------------------------------------
-      [CLICommand("menu", "Menu operations (exec, list)")]
+      [CLICommand("editor", "menu", description = "Menu operations (exec, list)")]
       public static object Menu(CommandArgs args)
       {
-         string sub = args.Arg(0);
+         string sub = args[0];
 
          if (sub == "exec")
          {
-            string path = args.Arg(1);
+            string path = args[1];
 
             if (string.IsNullOrEmpty(path))
             {
-               throw new CLIException(ErrorCode.INVALID_ARGS, "Menu path required.");
+               throw new CLIException(Constants.Error.InvalidArgs, "Menu path required.");
             }
 
             bool result = EditorApplication.ExecuteMenuItem(path);
 
             if (!result)
             {
-               throw new CLIException(ErrorCode.INVALID_ARGS, $"Menu item not found: {path}");
+               throw new CLIException(Constants.Error.InvalidArgs, $"Menu item not found: {path}");
             }
 
             return null;
@@ -123,7 +161,7 @@ namespace inonego.UniCLI.Group
             return Unsupported.GetSubmenus("").ToList();
          }
 
-         throw new CLIException(ErrorCode.INVALID_ARGS, "Use: editor menu exec <path> | editor menu list");
+         throw new CLIException(Constants.Error.InvalidArgs, "Use: editor menu exec <path> | editor menu list");
       }
 
    #endregion
@@ -135,10 +173,10 @@ namespace inonego.UniCLI.Group
       /// Window operations (list, focus, close).
       /// </summary>
       // ------------------------------------------------------------
-      [CLICommand("window", "Window operations (list, focus, close)")]
+      [CLICommand("editor", "window", description = "Window operations (list, focus, close)")]
       public static object Window(CommandArgs args)
       {
-         string sub = args.Arg(0);
+         string sub = args[0];
 
          if (sub == "list")
          {
@@ -159,12 +197,12 @@ namespace inonego.UniCLI.Group
          }
          else if (sub == "focus")
          {
-            int id = args.ArgInt(1);
+            int id = args.GetInt(1, 0);
             var win = EditorUtility.EntityIdToObject(id) as EditorWindow;
 
             if (win == null)
             {
-               throw new CLIException(ErrorCode.INVALID_ARGS, $"Window {id} not found.");
+               throw new CLIException(Constants.Error.InvalidArgs, $"Window {id} not found.");
             }
 
             win.Focus();
@@ -172,19 +210,19 @@ namespace inonego.UniCLI.Group
          }
          else if (sub == "close")
          {
-            int id = args.ArgInt(1);
+            int id = args.GetInt(1, 0);
             var win = EditorUtility.EntityIdToObject(id) as EditorWindow;
 
             if (win == null)
             {
-               throw new CLIException(ErrorCode.INVALID_ARGS, $"Window {id} not found.");
+               throw new CLIException(Constants.Error.InvalidArgs, $"Window {id} not found.");
             }
 
             win.Close();
             return null;
          }
 
-         throw new CLIException(ErrorCode.INVALID_ARGS, "Use: editor window list | focus <id> | close <id>");
+         throw new CLIException(Constants.Error.InvalidArgs, "Use: editor window list | focus <id> | close <id>");
       }
 
    #endregion

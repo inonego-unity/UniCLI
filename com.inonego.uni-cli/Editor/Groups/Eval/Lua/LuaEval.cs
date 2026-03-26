@@ -1,8 +1,9 @@
 using System;
 
+using InoCLI;
+
 namespace inonego.UniCLI.Group
 {
-   using Attribute;
    using Core;
 
    // ============================================================
@@ -11,8 +12,7 @@ namespace inonego.UniCLI.Group
    /// Registers under the "eval" group automatically.
    /// </summary>
    // ============================================================
-   [CLIGroup("eval", "Code evaluation")]
-   public class LuaEvalGroup
+   public static class LuaEvalGroup
    {
 
    #region Commands
@@ -22,14 +22,14 @@ namespace inonego.UniCLI.Group
       /// Evaluates Lua code via UniLua.
       /// </summary>
       // ------------------------------------------------------------
-      [CLICommand("lua", "Evaluate Lua code")]
+      [CLICommand("eval", "lua", description = "Evaluate Lua code")]
       public static object EvalLua(CommandArgs args)
       {
-         string code = args.Arg(0);
+         string code = args[0];
 
          if (string.IsNullOrEmpty(code))
          {
-            throw new CLIException(ErrorCode.INVALID_ARGS, "Code argument required.");
+            throw new CLIException(Constants.Error.InvalidArgs, "Code argument required.");
          }
 
          EnsureLuaEnv();
@@ -52,7 +52,7 @@ namespace inonego.UniCLI.Group
          }
          catch (UniLua.LuaException ex)
          {
-            throw new CLIException(ErrorCode.RUNTIME_ERROR, ex.Message);
+            throw new CLIException(Constants.Error.RuntimeError, ex.Message);
          }
       }
 

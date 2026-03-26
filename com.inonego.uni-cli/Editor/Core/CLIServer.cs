@@ -1,10 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.IO;
-using System.Net;
-using System.Net.Sockets;
-using System.Text;
+using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -15,11 +12,13 @@ using UnityEditor;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
+using InoIPC;
+
 namespace inonego.UniCLI.Core
 {
    // ============================================================
    /// <summary>
-   /// TCP server for UniCLI.
+   /// Named Pipe server for UniCLI.
    /// Accepts CLI client connections and routes requests.
    /// </summary>
    // ============================================================
@@ -29,12 +28,10 @@ namespace inonego.UniCLI.Core
 
    #region Fields
 
-      private static TcpListener listener;
-      private static TcpClient currentClient;
-      private static CancellationTokenSource cancellationTokenSource;
-      private static readonly object lockObj = new object();
+      private static NamedPipeServer server;
+      private static Thread serverThread;
+      private static string pipeName;
       private static bool isRunning = false;
-      private static int activePort = 0;
 
    #endregion
 
@@ -69,10 +66,10 @@ namespace inonego.UniCLI.Core
 
       // ------------------------------------------------------------
       /// <summary>
-      /// The port the server is currently listening on.
+      /// The pipe name the server is listening on.
       /// </summary>
       // ------------------------------------------------------------
-      public static int Port => activePort;
+      public static string PipeName => pipeName;
 
    #endregion
 
@@ -80,7 +77,8 @@ namespace inonego.UniCLI.Core
 
       // ------------------------------------------------------------
       /// <summary>
-      /// Starts the TCP server and initializes the command registry.
+      /// Starts the Named Pipe server and initializes the command
+      /// registry.
       /// </summary>
       // ------------------------------------------------------------
       public static void Start()
@@ -96,35 +94,83 @@ namespace inonego.UniCLI.Core
             CLIRegistry.Initialize();
             InstanceRegistry.CleanStale();
 
-            cancellationTokenSource = new CancellationTokenSource();
+            int pid = Process.GetCurrentProcess().Id;
+            pipeName = $"unicli-{pid}";
 
-            int basePort = CLISettings.Port;
+            server = new NamedPipeServer(pipeName);
 
-            for (int attempt = 0; attempt < CLISettings.MaxPortAttempts; attempt++)
+            serverThread = new Thread(() => server.Start(async conn =>
             {
-               int port = basePort + attempt;
+               await Awaitable.BackgroundThreadAsync();
 
                try
                {
-                  listener = new TcpListener(IPAddress.Loopback, port);
-                  listener.Start();
-                  activePort = port;
-                  isRunning  = true;
+                  string requestJson = conn.Receive();
 
-                  InstanceRegistry.Register(port);
+                  if (requestJson == null)
+                  {
+                     return;
+                  }
 
-                  CLILog.Info($"CLI server started on port {port}.");
+                  CLILog.Info($"Request: {requestJson}");
 
-                  AcceptClientsAsync(cancellationTokenSource.Token);
-                  return;
+                  // Handle modal commands directly (no main thread needed)
+                  string modalResponse = TryHandleModalCommand(requestJson);
+
+                  if (modalResponse != null)
+                  {
+                     conn.Send(modalResponse);
+                     CLILog.Info($"Response: {modalResponse}");
+                     return;
+                  }
+
+                  // Start modal watcher alongside command execution
+                  var modalCTS   = new CancellationTokenSource();
+                  var modalTask  = ModalWatcher.WatchAsync(modalCTS.Token, 300);
+                  bool modalSent = false;
+
+                  _ = Task.Run(async () =>
+                  {
+                     var modal = await modalTask;
+
+                     if (modal != null && !modalCTS.IsCancellationRequested)
+                     {
+                        try
+                        {
+                           string response = CreateModalResponse(modal);
+                           conn.Send(response);
+                           CLILog.Info($"Response (modal): {response}");
+                           modalSent = true;
+                        }
+                        catch {}
+                     }
+                  });
+
+                  string responseJson = await CLIRouter.HandleRequest(requestJson);
+                  modalCTS.Cancel();
+
+                  if (!modalSent)
+                  {
+                     conn.Send(responseJson);
+                     CLILog.Info($"Response: {responseJson}");
+                  }
                }
-               catch (SocketException)
+               catch (OperationCanceledException) {}
+               catch (System.IO.IOException) {}
+               catch (Exception ex)
                {
-                  listener = null;
+                  CLILog.Error("Error while handling client.", ex);
                }
-            }
+            }));
 
-            CLILog.Error($"Failed to start server — no available port (tried {basePort}~{basePort + CLISettings.MaxPortAttempts - 1}).");
+            serverThread.IsBackground = true;
+            serverThread.Start();
+
+            isRunning = true;
+
+            InstanceRegistry.Register(pipeName);
+
+            CLILog.Info($"CLI server started on pipe: {pipeName}");
          }
          catch (Exception ex)
          {
@@ -135,7 +181,7 @@ namespace inonego.UniCLI.Core
 
       // ------------------------------------------------------------
       /// <summary>
-      /// Stops the TCP server and disconnects the client.
+      /// Stops the Named Pipe server.
       /// </summary>
       // ------------------------------------------------------------
       public static void Stop()
@@ -149,24 +195,13 @@ namespace inonego.UniCLI.Core
          {
             isRunning = false;
 
-            if (cancellationTokenSource != null)
-            {
-               cancellationTokenSource.Cancel();
-               cancellationTokenSource.Dispose();
-               cancellationTokenSource = null;
-            }
+            server?.Stop();
+            serverThread = null;
+            server = null;
 
-            DisconnectClient();
-
-            if (listener != null)
-            {
-               listener.Stop();
-               listener = null;
-            }
-
-            InstanceRegistry.Unregister(activePort);
-            CLILog.Info($"CLI server stopped (port {activePort}).");
-            activePort = 0;
+            InstanceRegistry.Unregister(pipeName);
+            CLILog.Info($"CLI server stopped (pipe: {pipeName}).");
+            pipeName = null;
          }
          catch (Exception ex)
          {
@@ -187,255 +222,13 @@ namespace inonego.UniCLI.Core
 
    #endregion
 
-   #region Client Handling
-
-      // ------------------------------------------------------------
-      /// <summary>
-      /// Accepts incoming client connections.
-      /// </summary>
-      // ------------------------------------------------------------
-      private static async void AcceptClientsAsync(CancellationToken token)
-      {
-         await Awaitable.BackgroundThreadAsync();
-
-         while (!token.IsCancellationRequested)
-         {
-            try
-            {
-               TcpClient client = await listener.AcceptTcpClientAsync();
-
-               lock (lockObj)
-               {
-                  DisconnectClient();
-                  currentClient = client;
-               }
-
-               CLILog.Info("Client connected.");
-
-               HandleClientAsync(client, token);
-            }
-            catch (ObjectDisposedException)
-            {
-               break;
-            }
-            catch (SocketException) when (token.IsCancellationRequested)
-            {
-               break;
-            }
-            catch (Exception ex)
-            {
-               if (!token.IsCancellationRequested)
-               {
-                  CLILog.Error("Error while accepting client.", ex);
-               }
-            }
-         }
-      }
-
-      // ----------------------------------------------------------------------
-      /// <summary>
-      /// <br/> Handles a connected client.
-      /// <br/> Reads frames, routes to CLIRouter, writes responses.
-      /// </summary>
-      // ----------------------------------------------------------------------
-      private static async void HandleClientAsync(TcpClient client, CancellationToken token)
-      {
-         await Awaitable.BackgroundThreadAsync();
-
-         NetworkStream stream = null;
-
-         try
-         {
-            stream = client.GetStream();
-
-            while (!token.IsCancellationRequested && client.Connected)
-            {
-               string requestJson = await ReadFrameAsync(stream, token);
-
-               if (requestJson == null)
-               {
-                  break;
-               }
-
-               CLILog.Info($"Request: {requestJson}");
-
-               // Handle modal commands directly (no main thread needed)
-               string modalResponse = TryHandleModalCommand(requestJson);
-
-               if (modalResponse != null)
-               {
-                  await WriteFrameAsync(stream, modalResponse, token);
-                  CLILog.Info($"Response: {modalResponse}");
-                  continue;
-               }
-
-               // Start modal watcher alongside command execution
-               var modalCTS     = new CancellationTokenSource();
-               var modalTask    = ModalWatcher.WatchAsync(modalCTS.Token, 300);
-               bool modalSent   = false;
-
-               // Monitor for modal in background while command executes
-               _ = Task.Run(async () =>
-               {
-                  var modal = await modalTask;
-
-                  if (modal != null && !modalCTS.IsCancellationRequested)
-                  {
-                     try
-                     {
-                        string response = CreateModalResponse(modal);
-                        await WriteFrameAsync(stream, response, token);
-                        CLILog.Info($"Response (modal): {response}");
-                        modalSent = true;
-                     }
-                     catch {}
-                  }
-               });
-
-               string responseJson = await CLIRouter.HandleRequest(requestJson);
-               modalCTS.Cancel();
-
-               if (!modalSent)
-               {
-                  await WriteFrameAsync(stream, responseJson, token);
-                  CLILog.Info($"Response: {responseJson}");
-               }
-            }
-         }
-         catch (OperationCanceledException) {}
-         catch (ObjectDisposedException) {}
-         catch (IOException) {}
-         catch (Exception ex)
-         {
-            if (!token.IsCancellationRequested)
-            {
-               CLILog.Error("Error while handling client.", ex);
-            }
-         }
-         finally
-         {
-            lock (lockObj)
-            {
-               if (currentClient == client)
-               {
-                  currentClient = null;
-               }
-            }
-
-            try
-            {
-               stream?.Close();
-               client?.Close();
-            }
-            catch {}
-
-            CLILog.Info("Client disconnected.");
-         }
-      }
-
-   #endregion
-
-   #region Frame Protocol
-
-      // ----------------------------------------------------------------------
-      /// <summary>
-      /// <br/> Reads a length-prefixed frame from the stream.
-      /// <br/> Format: [4-byte big-endian uint32 length][UTF-8 JSON body]
-      /// </summary>
-      // ----------------------------------------------------------------------
-      private static async Task<string> ReadFrameAsync(NetworkStream stream, CancellationToken token)
-      {
-         byte[] lengthBuffer = new byte[4];
-         int bytesRead = await ReadExactAsync(stream, lengthBuffer, 0, 4, token);
-
-         if (bytesRead < 4)
-         {
-            return null;
-         }
-
-         if (BitConverter.IsLittleEndian)
-         {
-            Array.Reverse(lengthBuffer);
-         }
-
-         uint length = BitConverter.ToUInt32(lengthBuffer, 0);
-
-         if (length == 0)
-         {
-            return string.Empty;
-         }
-
-         byte[] bodyBuffer = new byte[length];
-         bytesRead = await ReadExactAsync(stream, bodyBuffer, 0, (int)length, token);
-
-         if (bytesRead < (int)length)
-         {
-            return null;
-         }
-
-         return Encoding.UTF8.GetString(bodyBuffer);
-      }
-
-      // ------------------------------------------------------------
-      /// <summary>
-      /// Reads an exact number of bytes from the stream.
-      /// </summary>
-      // ------------------------------------------------------------
-      private static async Task<int> ReadExactAsync
-      (
-         NetworkStream stream,
-         byte[] buffer, int offset, int count,
-         CancellationToken token
-      )
-      {
-         int totalRead = 0;
-
-         while (totalRead < count)
-         {
-            token.ThrowIfCancellationRequested();
-
-            int read = await stream.ReadAsync(buffer, offset + totalRead, count - totalRead, token);
-
-            if (read == 0)
-            {
-               break;
-            }
-
-            totalRead += read;
-         }
-
-         return totalRead;
-      }
-
-      // ----------------------------------------------------------------------
-      /// <summary>
-      /// <br/> Writes a length-prefixed frame to the stream.
-      /// <br/> Format: [4-byte big-endian uint32 length][UTF-8 JSON body]
-      /// </summary>
-      // ----------------------------------------------------------------------
-      private static async Task WriteFrameAsync(NetworkStream stream, string json, CancellationToken token)
-      {
-         byte[] bodyBytes   = Encoding.UTF8.GetBytes(json);
-         byte[] lengthBytes = BitConverter.GetBytes((uint)bodyBytes.Length);
-
-         if (BitConverter.IsLittleEndian)
-         {
-            Array.Reverse(lengthBytes);
-         }
-
-         await stream.WriteAsync(lengthBytes, 0, lengthBytes.Length, token);
-         await stream.WriteAsync(bodyBytes, 0, bodyBytes.Length, token);
-         await stream.FlushAsync(token);
-      }
-
-   #endregion
-
    #region Modal
 
       // ----------------------------------------------------------------------
       /// <summary>
       /// <br/> Handles modal commands without main thread.
       /// <br/> Returns JSON response, or null if not a modal command.
+      /// <br/> Expects positionals/optionals format.
       /// </summary>
       // ----------------------------------------------------------------------
       private static string TryHandleModalCommand(string json)
@@ -444,39 +237,22 @@ namespace inonego.UniCLI.Core
          {
             var root = JObject.Parse(json);
 
-            string group   = root.Value<string>("group");
-            string command = root.Value<string>("command") ?? "";
+            var positionals = root.Value<JArray>("positionals");
 
-            if (group != "editor" || (command != "modal" && command != ""))
+            if (positionals == null || positionals.Count < 2)
             {
                return null;
             }
 
-            // Check if it's "editor modal" by looking at args
-            var argsArray = root.Value<JArray>("args");
-            string subCommand = null;
+            string first  = positionals[0]?.ToString();
+            string second = positionals[1]?.ToString();
 
-            if (command == "modal")
-            {
-               subCommand = argsArray != null && argsArray.Count > 0
-                  ? argsArray[0]?.ToString()
-                  : null;
-            }
-            else if (command == "" && argsArray != null && argsArray.Count > 0)
-            {
-               if (argsArray[0]?.ToString() == "modal")
-               {
-                  subCommand = argsArray.Count > 1 ? argsArray[1]?.ToString() : null;
-               }
-               else
-               {
-                  return null;
-               }
-            }
-            else
+            if (first != "editor" || second != "modal")
             {
                return null;
             }
+
+            string subCommand = positionals.Count > 2 ? positionals[2]?.ToString() : null;
 
             // editor modal — detect
             if (subCommand == null || subCommand == "")
@@ -494,16 +270,7 @@ namespace inonego.UniCLI.Core
             // editor modal click <button>
             if (subCommand == "click")
             {
-               string buttonText = null;
-
-               if (command == "modal" && argsArray != null && argsArray.Count > 1)
-               {
-                  buttonText = argsArray[1]?.ToString();
-               }
-               else if (command == "" && argsArray != null && argsArray.Count > 2)
-               {
-                  buttonText = argsArray[2]?.ToString();
-               }
+               string buttonText = positionals.Count > 3 ? positionals[3]?.ToString() : null;
 
                if (string.IsNullOrEmpty(buttonText))
                {
@@ -587,35 +354,6 @@ namespace inonego.UniCLI.Core
          };
 
          return response.ToString(Formatting.None);
-      }
-
-   #endregion
-
-   #region Helpers
-
-      // ------------------------------------------------------------
-      /// <summary>
-      /// Disconnects the current client.
-      /// </summary>
-      // ------------------------------------------------------------
-      private static void DisconnectClient()
-      {
-         if (currentClient != null)
-         {
-            try
-            {
-               currentClient.GetStream().Close();
-            }
-            catch {}
-
-            try
-            {
-               currentClient.Close();
-            }
-            catch {}
-
-            currentClient = null;
-         }
       }
 
    #endregion

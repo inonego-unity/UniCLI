@@ -6,11 +6,12 @@ using UnityEngine;
 
 using UnityEditor;
 
+using InoCLI;
+
 using Newtonsoft.Json.Linq;
 
 namespace inonego.UniCLI.Group
 {
-   using Attribute;
    using Core;
 
    // ============================================================
@@ -18,20 +19,19 @@ namespace inonego.UniCLI.Group
    /// Prefab management commands.
    /// </summary>
    // ============================================================
-   [CLIGroup("prefab", "Prefab operations")]
-   public class PrefabCommandGroup
+   public static class PrefabCommandGroup
    {
 
    #region Commands
 
-      [CLICommand("load", "Load prefab for editing")]
+      [CLICommand("prefab", "load", description = "Load prefab for editing")]
       public static object Load(CommandArgs args)
       {
-         string path = args.Arg(0);
+         string path = args[0];
 
          if (string.IsNullOrEmpty(path))
          {
-            throw new CLIException(ErrorCode.INVALID_ARGS, "Prefab path required.");
+            throw new CLIException(Constants.Error.InvalidArgs, "Prefab path required.");
          }
 
          var root = PrefabUtility.LoadPrefabContents(path);
@@ -43,21 +43,21 @@ namespace inonego.UniCLI.Group
          };
       }
 
-      [CLICommand("unload", "Unload prefab contents")]
+      [CLICommand("prefab", "unload", description = "Unload prefab contents")]
       public static object Unload(CommandArgs args)
       {
-         int id = args.ArgInt(0);
+         int id = args.GetInt(0, 0);
 
          if (id == 0)
          {
-            throw new CLIException(ErrorCode.INVALID_ARGS, "Root instance ID required (from prefab load).");
+            throw new CLIException(Constants.Error.InvalidArgs, "Root instance ID required (from prefab load).");
          }
 
          var go = EditorUtility.EntityIdToObject(id) as GameObject;
 
          if (go == null)
          {
-            throw new CLIException(ErrorCode.INVALID_ARGS, $"GameObject {id} not found.");
+            throw new CLIException(Constants.Error.InvalidArgs, $"GameObject {id} not found.");
          }
 
          PrefabUtility.UnloadPrefabContents(go);
@@ -65,22 +65,22 @@ namespace inonego.UniCLI.Group
          return null;
       }
 
-      [CLICommand("save", "Save GameObject as prefab")]
+      [CLICommand("prefab", "save", description = "Save GameObject as prefab")]
       public static object Save(CommandArgs args)
       {
-         int id     = args.ArgInt(0);
-         string path = args.Arg(1);
+         int id     = args.GetInt(0, 0);
+         string path = args[1];
 
          if (id == 0 || string.IsNullOrEmpty(path))
          {
-            throw new CLIException(ErrorCode.INVALID_ARGS, "Instance ID and path required.");
+            throw new CLIException(Constants.Error.InvalidArgs, "Instance ID and path required.");
          }
 
          var go = EditorUtility.EntityIdToObject(id) as GameObject;
 
          if (go == null)
          {
-            throw new CLIException(ErrorCode.INVALID_ARGS, $"GameObject {id} not found.");
+            throw new CLIException(Constants.Error.InvalidArgs, $"GameObject {id} not found.");
          }
 
          PrefabUtility.SaveAsPrefabAsset(go, path);
@@ -88,7 +88,7 @@ namespace inonego.UniCLI.Group
          return new JObject { ["path"] = path };
       }
 
-      [CLICommand("apply", "Apply prefab overrides")]
+      [CLICommand("prefab", "apply", description = "Apply prefab overrides")]
       public static object Apply(CommandArgs args)
       {
          var go = GetPrefabInstance(args);
@@ -99,7 +99,7 @@ namespace inonego.UniCLI.Group
          return null;
       }
 
-      [CLICommand("revert", "Revert prefab overrides")]
+      [CLICommand("prefab", "revert", description = "Revert prefab overrides")]
       public static object Revert(CommandArgs args)
       {
          var go = GetPrefabInstance(args);
@@ -109,7 +109,7 @@ namespace inonego.UniCLI.Group
          return null;
       }
 
-      [CLICommand("unpack", "Unpack prefab instance")]
+      [CLICommand("prefab", "unpack", description = "Unpack prefab instance")]
       public static object Unpack(CommandArgs args)
       {
          var go = GetPrefabInstance(args);
@@ -130,25 +130,25 @@ namespace inonego.UniCLI.Group
       // ------------------------------------------------------------
       private static GameObject GetPrefabInstance(CommandArgs args)
       {
-         int id = args.ArgInt(0);
+         int id = args.GetInt(0, 0);
 
          if (id == 0)
          {
-            throw new CLIException(ErrorCode.INVALID_ARGS, "Instance ID required.");
+            throw new CLIException(Constants.Error.InvalidArgs, "Instance ID required.");
          }
 
          var obj = EditorUtility.EntityIdToObject(id) as GameObject;
 
          if (obj == null)
          {
-            throw new CLIException(ErrorCode.INVALID_ARGS, $"GameObject {id} not found.");
+            throw new CLIException(Constants.Error.InvalidArgs, $"GameObject {id} not found.");
          }
 
          var root = PrefabUtility.GetNearestPrefabInstanceRoot(obj);
 
          if (root == null)
          {
-            throw new CLIException(ErrorCode.INVALID_ARGS, $"GameObject {id} is not a prefab instance.");
+            throw new CLIException(Constants.Error.InvalidArgs, $"GameObject {id} is not a prefab instance.");
          }
 
          return root;

@@ -1,0 +1,10 @@
+<Solution>
+  <Folder Name="/cli/">
+    <Project Path="cli/UniCLI.csproj" />
+  </Folder>
+  <Folder Name="/lib/" />
+  <Folder Name="/lib/InoCLI/" />
+  <Folder Name="/lib/InoCLI/src/">
+    <Project Path="lib/InoCLI/src/InoCLI/InoCLI.csproj" />
+  </Folder>
+</Solution>

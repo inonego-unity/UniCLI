@@ -8,11 +8,12 @@ using UnityEngine.SceneManagement;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 
+using InoCLI;
+
 using Newtonsoft.Json.Linq;
 
 namespace inonego.UniCLI.Group
 {
-   using Attribute;
    using Core;
 
    // ============================================================
@@ -20,8 +21,7 @@ namespace inonego.UniCLI.Group
    /// Scene management commands.
    /// </summary>
    // ============================================================
-   [CLIGroup("scene", "Scene management")]
-   public class SceneCommandGroup
+   public static class SceneCommandGroup
    {
 
    #region Commands
@@ -31,7 +31,7 @@ namespace inonego.UniCLI.Group
       /// Lists all loaded scenes.
       /// </summary>
       // ------------------------------------------------------------
-      [CLICommand("list", "List open scenes")]
+      [CLICommand("scene", "list", description = "List open scenes")]
       public static object List(CommandArgs args)
       {
          var scenes = new List<object>();
@@ -49,14 +49,14 @@ namespace inonego.UniCLI.Group
       /// Creates a new scene.
       /// </summary>
       // ------------------------------------------------------------
-      [CLICommand("new", "Create a new scene")]
+      [CLICommand("scene", "new", description = "Create a new scene")]
       public static object New(CommandArgs args)
       {
-         var setup = args.Option("setup", "default") == "empty"
+         var setup = args.Get("setup", "default") == "empty"
             ? NewSceneSetup.EmptyScene
             : NewSceneSetup.DefaultGameObjects;
 
-         var mode = args.Option("mode", "single") == "additive"
+         var mode = args.Get("mode", "single") == "additive"
             ? NewSceneMode.Additive
             : NewSceneMode.Single;
 
@@ -68,14 +68,14 @@ namespace inonego.UniCLI.Group
       /// Opens a scene by path.
       /// </summary>
       // ------------------------------------------------------------
-      [CLICommand("open", "Open a scene")]
+      [CLICommand("scene", "open", description = "Open a scene")]
       public static object Open(CommandArgs args)
       {
-         string path = args.Arg(0);
+         string path = args[0];
 
          if (string.IsNullOrEmpty(path))
          {
-            throw new CLIException(ErrorCode.INVALID_ARGS, "Scene path required.");
+            throw new CLIException(Constants.Error.InvalidArgs, "Scene path required.");
          }
 
          var mode = args.Flag("additive")
@@ -90,7 +90,7 @@ namespace inonego.UniCLI.Group
       /// Saves a scene.
       /// </summary>
       // ------------------------------------------------------------
-      [CLICommand("save", "Save scene")]
+      [CLICommand("scene", "save", description = "Save scene")]
       public static object Save(CommandArgs args)
       {
          if (args.Flag("all"))
@@ -108,7 +108,7 @@ namespace inonego.UniCLI.Group
          }
 
          var scene = GetTargetScene(args);
-         string path = args.Option("path");
+         string path = args["path"];
 
          if (path != null)
          {
@@ -118,7 +118,7 @@ namespace inonego.UniCLI.Group
          {
             if (string.IsNullOrEmpty(scene.path))
             {
-               throw new CLIException(ErrorCode.INVALID_ARGS, "Scene has no path. Use --path to specify.");
+               throw new CLIException(Constants.Error.InvalidArgs, "Scene has no path. Use --path to specify.");
             }
 
             EditorSceneManager.SaveScene(scene);
@@ -132,7 +132,7 @@ namespace inonego.UniCLI.Group
       /// Closes a scene.
       /// </summary>
       // ------------------------------------------------------------
-      [CLICommand("close", "Close a scene")]
+      [CLICommand("scene", "close", description = "Close a scene")]
       public static object Close(CommandArgs args)
       {
          var scene = GetTargetScene(args);
@@ -153,7 +153,7 @@ namespace inonego.UniCLI.Group
       /// Gets root GameObjects of a scene.
       /// </summary>
       // ------------------------------------------------------------
-      [CLICommand("root", "List root GameObjects")]
+      [CLICommand("scene", "root", description = "List root GameObjects")]
       public static object Root(CommandArgs args)
       {
          var scene = GetTargetScene(args);
@@ -165,10 +165,10 @@ namespace inonego.UniCLI.Group
       /// Gets or sets the active scene.
       /// </summary>
       // ------------------------------------------------------------
-      [CLICommand("active", "Get or set active scene")]
+      [CLICommand("scene", "active", description = "Get or set active scene")]
       public static object Active(CommandArgs args)
       {
-         string idStr = args.Option("id");
+         string idStr = args["id"];
 
          if (idStr != null && int.TryParse(idStr, out int handle))
          {
@@ -183,7 +183,7 @@ namespace inonego.UniCLI.Group
                }
             }
 
-            throw new CLIException(ErrorCode.INVALID_ARGS, $"Scene handle {handle} not found.");
+            throw new CLIException(Constants.Error.InvalidArgs, $"Scene handle {handle} not found.");
          }
 
          return SceneManager.GetActiveScene();
@@ -200,7 +200,7 @@ namespace inonego.UniCLI.Group
       // ------------------------------------------------------------
       private static Scene GetTargetScene(CommandArgs args)
       {
-         string idStr = args.Option("id");
+         string idStr = args["id"];
 
          if (idStr != null && int.TryParse(idStr, out int handle))
          {
@@ -214,7 +214,7 @@ namespace inonego.UniCLI.Group
                }
             }
 
-            throw new CLIException(ErrorCode.INVALID_ARGS, $"Scene handle {handle} not found.");
+            throw new CLIException(Constants.Error.InvalidArgs, $"Scene handle {handle} not found.");
          }
 
          return SceneManager.GetActiveScene();

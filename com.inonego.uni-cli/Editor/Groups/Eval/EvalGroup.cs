@@ -2,9 +2,10 @@ using System;
 
 using UnityEngine;
 
+using InoCLI;
+
 namespace inonego.UniCLI.Group
 {
-   using Attribute;
    using Core;
 
    // ============================================================
@@ -13,8 +14,7 @@ namespace inonego.UniCLI.Group
    /// Provides C# and Lua code evaluation.
    /// </summary>
    // ============================================================
-   [CLIGroup("eval", "Code evaluation")]
-   public class EvalGroup
+   public static class EvalGroup
    {
 
    #region Commands
@@ -25,7 +25,7 @@ namespace inonego.UniCLI.Group
       /// <br/> Compiles on background thread, executes on main thread.
       /// </summary>
       // ----------------------------------------------------------------------
-      [CLICommand("cs", "Evaluate C# code")]
+      [CLICommand("eval", "cs", description = "Evaluate C# code")]
       public static async Awaitable<object> EvalCS(CommandArgs args)
       {
          var (assembly, className) = CSharpEval.Compile(args);

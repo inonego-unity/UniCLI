@@ -34,26 +34,28 @@ namespace inonego.UniCLI.Core
 
       // ------------------------------------------------------------
       /// <summary>
-      /// Registers the current Unity instance with its port.
+      /// Registers the current Unity instance with its pipe name.
       /// </summary>
       // ------------------------------------------------------------
-      public static void Register(int port)
+      public static void Register(string pipeName)
       {
          try
          {
             Directory.CreateDirectory(registryDir);
 
+            int pid = Process.GetCurrentProcess().Id;
+
             var entry = new JObject
             {
-               ["port"]          = port,
-               ["pid"]           = Process.GetCurrentProcess().Id,
+               ["pipe"]          = pipeName,
+               ["pid"]           = pid,
                ["project_path"]  = Application.dataPath.Replace("/Assets", ""),
                ["project_name"]  = Path.GetFileName(Application.dataPath.Replace("/Assets", "")),
                ["unity_version"] = Application.unityVersion,
                ["timestamp"]     = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
             };
 
-            string path = Path.Combine(registryDir, $"{port}.json");
+            string path = Path.Combine(registryDir, $"{pid}.json");
             File.WriteAllText(path, entry.ToString(Formatting.Indented));
          }
          catch (Exception ex)
@@ -64,14 +66,15 @@ namespace inonego.UniCLI.Core
 
       // ------------------------------------------------------------
       /// <summary>
-      /// Unregisters the instance by port.
+      /// Unregisters the instance by pipe name.
       /// </summary>
       // ------------------------------------------------------------
-      public static void Unregister(int port)
+      public static void Unregister(string pipeName)
       {
          try
          {
-            string path = Path.Combine(registryDir, $"{port}.json");
+            int pid = Process.GetCurrentProcess().Id;
+            string path = Path.Combine(registryDir, $"{pid}.json");
 
             if (File.Exists(path))
             {

@@ -16,38 +16,17 @@ namespace inonego.UniCLI.Core
 
       private const string PREFIX = "UniCLI_";
 
-      private const string KEY_PORT            = PREFIX + "Port";
       private const string KEY_AUTO_START      = PREFIX + "AutoStart";
       private const string KEY_ENABLED         = PREFIX + "Enabled";
       private const string KEY_SKILL_AUTO_SYNC = PREFIX + "SkillAutoSync";
 
-      private const int  DEFAULT_PORT              = 18960;
-      private const int  DEFAULT_MAX_PORT_ATTEMPTS = 10;
-      private const bool DEFAULT_AUTO_START        = true;
-      private const bool DEFAULT_ENABLED           = true;
-      private const bool DEFAULT_SKILL_AUTO_SYNC   = true;
+      private const bool DEFAULT_AUTO_START      = true;
+      private const bool DEFAULT_ENABLED         = true;
+      private const bool DEFAULT_SKILL_AUTO_SYNC = true;
 
    #endregion
 
    #region Properties
-
-      // ------------------------------------------------------------
-      /// <summary>
-      /// Gets or sets the TCP server port.
-      /// </summary>
-      // ------------------------------------------------------------
-      public static int Port
-      {
-         get => EditorPrefs.GetInt(KEY_PORT, DEFAULT_PORT);
-         set => EditorPrefs.SetInt(KEY_PORT, value);
-      }
-
-      // ------------------------------------------------------------
-      /// <summary>
-      /// Maximum number of ports to try when starting the server.
-      /// </summary>
-      // ------------------------------------------------------------
-      public static int MaxPortAttempts => DEFAULT_MAX_PORT_ATTEMPTS;
 
       // ------------------------------------------------------------------
       /// <summary>
@@ -93,7 +72,6 @@ namespace inonego.UniCLI.Core
       // ------------------------------------------------------------
       public static void ResetToDefaults()
       {
-         Port          = DEFAULT_PORT;
          AutoStart     = DEFAULT_AUTO_START;
          Enabled       = DEFAULT_ENABLED;
          SkillAutoSync = DEFAULT_SKILL_AUTO_SYNC;

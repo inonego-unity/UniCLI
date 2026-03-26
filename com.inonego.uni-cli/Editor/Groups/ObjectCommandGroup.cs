@@ -6,11 +6,12 @@ using UnityEngine;
 
 using UnityEditor;
 
+using InoCLI;
+
 using Newtonsoft.Json.Linq;
 
 namespace inonego.UniCLI.Group
 {
-   using Attribute;
    using Core;
 
    // ============================================================
@@ -18,8 +19,7 @@ namespace inonego.UniCLI.Group
    /// Universal Object commands (works on any UnityEngine.Object).
    /// </summary>
    // ============================================================
-   [CLIGroup("object", "Object operations")]
-   public class ObjectCommandGroup
+   public static class ObjectCommandGroup
    {
 
    #region Commands
@@ -29,7 +29,7 @@ namespace inonego.UniCLI.Group
       /// Instantiates (clones) an object.
       /// </summary>
       // ------------------------------------------------------------
-      [CLICommand("instantiate", "Clone an object")]
+      [CLICommand("object", "instantiate", description = "Clone an object")]
       public static object Instantiate(CommandArgs args)
       {
          var obj = GetTarget(args, 0);
@@ -37,14 +37,14 @@ namespace inonego.UniCLI.Group
          var clone = UnityEngine.Object.Instantiate(obj);
          Undo.RegisterCreatedObjectUndo(clone, $"Instantiate {obj.name}");
 
-         string name = args.Option("name");
+         string name = args["name"];
 
          if (name != null)
          {
             clone.name = name;
          }
 
-         string parentId = args.Option("parent");
+         string parentId = args["parent"];
 
          if (parentId != null && int.TryParse(parentId, out int pid))
          {
@@ -64,7 +64,7 @@ namespace inonego.UniCLI.Group
       /// Destroys an object with undo support.
       /// </summary>
       // ------------------------------------------------------------
-      [CLICommand("destroy", "Destroy an object")]
+      [CLICommand("object", "destroy", description = "Destroy an object")]
       public static object Destroy(CommandArgs args)
       {
          var obj = GetTarget(args, 0);
@@ -79,10 +79,10 @@ namespace inonego.UniCLI.Group
       /// Pings (highlights) an object in the editor.
       /// </summary>
       // ------------------------------------------------------------
-      [CLICommand("ping", "Highlight an object in editor")]
+      [CLICommand("object", "ping", description = "Highlight an object in editor")]
       public static object Ping(CommandArgs args)
       {
-         int id = args.ArgInt(0);
+         int id = args.GetInt(0, 0);
 
          EditorGUIUtility.PingObject(id);
 
@@ -94,14 +94,14 @@ namespace inonego.UniCLI.Group
       /// Selects objects in the editor.
       /// </summary>
       // ------------------------------------------------------------
-      [CLICommand("select", "Select objects in editor")]
+      [CLICommand("object", "select", description = "Select objects in editor")]
       public static object Select(CommandArgs args)
       {
          var objects = new List<UnityEngine.Object>();
 
-         for (int i = 0; i < args.ArgCount; i++)
+         for (int i = 0; i < args.Count; i++)
          {
-            int id = args.ArgInt(i);
+            int id = args.GetInt(i, 0);
 
             if (id != 0)
             {
@@ -124,11 +124,11 @@ namespace inonego.UniCLI.Group
       /// Gets or sets the name of an object.
       /// </summary>
       // ------------------------------------------------------------
-      [CLICommand("name", "Get or set object name")]
+      [CLICommand("object", "name", description = "Get or set object name")]
       public static object Name(CommandArgs args)
       {
          var obj = GetTarget(args, 0);
-         string value = args.Arg(1);
+         string value = args[1];
 
          if (value != null)
          {
@@ -154,18 +154,18 @@ namespace inonego.UniCLI.Group
       // ------------------------------------------------------------
       private static UnityEngine.Object GetTarget(CommandArgs args, int argIndex)
       {
-         int id = args.ArgInt(argIndex);
+         int id = args.GetInt(argIndex, 0);
 
          if (id == 0)
          {
-            throw new CLIException(ErrorCode.INVALID_ARGS, "Instance ID required.");
+            throw new CLIException(Constants.Error.InvalidArgs, "Instance ID required.");
          }
 
          var obj = EditorUtility.EntityIdToObject(id);
 
          if (obj == null)
          {
-            throw new CLIException(ErrorCode.INVALID_ARGS, $"Object {id} not found.");
+            throw new CLIException(Constants.Error.InvalidArgs, $"Object {id} not found.");
          }
 
          return obj;

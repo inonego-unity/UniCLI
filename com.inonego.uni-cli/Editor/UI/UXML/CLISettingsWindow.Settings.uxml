@@ -9,7 +9,6 @@
             <!-- CONFIGURATION -->
             <ui:VisualElement class="cli-section">
                 <ui:Label text="CONFIGURATION" class="cli-section-header" />
-                <ui:IntegerField name="field-port" label="Port" />
                 <ui:Toggle name="field-auto-start" label="Auto-Start" />
                 <ui:Toggle name="field-enabled" label="Enabled" />
             </ui:VisualElement>
@@ -20,7 +19,7 @@
                 <ui:VisualElement name="status-row" class="cli-status-row">
                     <ui:VisualElement name="status-dot" class="cli-status-dot" />
                     <ui:Label name="status-label" text="Stopped" class="cli-status-label" />
-                    <ui:Label name="port-label" text="—" class="cli-port-label" />
+                    <ui:Label name="pipe-label" text="—" class="cli-pipe-label" />
                 </ui:VisualElement>
                 <ui:VisualElement class="cli-button-row">
                     <ui:Button name="btn-start-stop" text="Start" class="cli-btn cli-btn-primary" />

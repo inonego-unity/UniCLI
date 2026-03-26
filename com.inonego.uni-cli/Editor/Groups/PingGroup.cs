@@ -6,11 +6,12 @@ using UnityEngine;
 
 using UnityEditor;
 
+using InoCLI;
+
 using Newtonsoft.Json.Linq;
 
 namespace inonego.UniCLI.Group
 {
-   using Attribute;
    using Core;
 
    // ============================================================
@@ -19,8 +20,7 @@ namespace inonego.UniCLI.Group
    /// Returns server connectivity and project information.
    /// </summary>
    // ============================================================
-   [CLIGroup("ping", "Server connectivity and project info")]
-   public class PingGroup
+   public static class PingGroup
    {
 
    #region Methods
@@ -30,12 +30,12 @@ namespace inonego.UniCLI.Group
       /// Returns server and project information.
       /// </summary>
       // ------------------------------------------------------------
-      [CLICommand("", "Check server connectivity and get project info")]
+      [CLICommand("ping", description = "Check server connectivity and get project info")]
       public static object Ping(CommandArgs args)
       {
          var result = new JObject
          {
-            ["port"]     = CLISettings.Port,
+            ["pipe"]     = CLIServer.PipeName,
             ["project"]  = Application.productName,
             ["unity"]    = Application.unityVersion,
             ["platform"] = EditorUserBuildSettings.activeBuildTarget.ToString()

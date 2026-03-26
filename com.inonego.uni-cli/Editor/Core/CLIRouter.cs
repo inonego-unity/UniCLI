@@ -1,7 +1,10 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 
 using UnityEngine;
+
+using InoCLI;
 
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
@@ -22,7 +25,7 @@ namespace inonego.UniCLI.Core
       // ----------------------------------------------------------------------
       /// <summary>
       /// <br/> Handles a raw JSON request string.
-      /// <br/> Parses group/command/args/options, invokes on the main thread,
+      /// <br/> Parses positionals/optionals, resolves via CommandRegistry,
       /// <br/> and returns a JSON response string.
       /// </summary>
       // ----------------------------------------------------------------------
@@ -30,23 +33,16 @@ namespace inonego.UniCLI.Core
       {
          try
          {
-            var request = ParseRequest(json);
-
-            string group   = request.Group;
-            string command = request.Command;
+            var parsed = ParseRequest(json);
 
             // Handle --help
-            if (request.Help)
+            if (parsed.Has("help"))
             {
-               return CreateHelpResponse(group, command);
+               return CreateHelpResponse(parsed);
             }
 
-            // Build CommandArgs
-            var args = new CommandArgs(request.Args, request.Options);
-
-            // Invoke (async commands handle their own threading,
-            // sync commands get Awaitable.MainThreadAsync via CLIRegistry)
-            object result = await CLIRegistry.InvokeCommand(group, command, args);
+            // Resolve + invoke via CLIRegistry (handles async/sync)
+            object result = await CLIRegistry.Invoke(parsed);
 
             // Serialize on main thread (Unity properties like go.scene require it)
             await Awaitable.MainThreadAsync();
@@ -60,7 +56,6 @@ namespace inonego.UniCLI.Core
          }
          catch (Exception ex)
          {
-            // Unwrap TargetInvocationException from reflection
             var inner = ex.InnerException ?? ex;
 
             if (inner is CLIException cliEx)
@@ -68,7 +63,7 @@ namespace inonego.UniCLI.Core
                return CreateErrorResponse(cliEx.Code, cliEx.Message);
             }
 
-            return CreateErrorResponse(ErrorCode.INTERNAL_ERROR, inner.Message);
+            return CreateErrorResponse(Constants.Error.InternalError, inner.Message);
          }
       }
 
@@ -76,27 +71,13 @@ namespace inonego.UniCLI.Core
 
    #region Request Parsing
 
-      // ------------------------------------------------------------
-      /// <summary>
-      /// Holds parsed request data.
-      /// </summary>
-      // ------------------------------------------------------------
-      private class ParsedRequest
-      {
-         public string   Group;
-         public string   Command;
-         public string[] Args;
-         public Dictionary<string, object> Options;
-         public bool     Help;
-      }
-
       // ----------------------------------------------------------------------
       /// <summary>
-      /// Parses a JSON string into a ParsedRequest.
-      /// Expected: {"group":"...","command":"...","args":[...],"options":{...}}
+      /// <br/> Parses a JSON request into CommandArgs.
+      /// <br/> Format: {"positionals":[...],"optionals":{...}}
       /// </summary>
       // ----------------------------------------------------------------------
-      private static ParsedRequest ParseRequest(string json)
+      private static CommandArgs ParseRequest(string json)
       {
          JObject root;
 
@@ -106,118 +87,58 @@ namespace inonego.UniCLI.Core
          }
          catch (JsonReaderException ex)
          {
-            throw new CLIException(ErrorCode.PARSE_ERROR, $"Invalid JSON: {ex.Message}");
+            throw new CLIException(Constants.Error.ParseError, $"Invalid JSON: {ex.Message}");
          }
 
-         // Group (required)
-         string group = root.Value<string>("group");
+         var positionals = new List<string>();
+         var optionals   = new Dictionary<string, List<string>>();
 
-         if (string.IsNullOrEmpty(group))
+         // Positionals
+         var posArray = root.Value<JArray>("positionals");
+
+         if (posArray != null)
          {
-            throw new CLIException(ErrorCode.PARSE_ERROR, "Missing 'group' field.");
-         }
-
-         // Command (optional)
-         string command = root.Value<string>("command") ?? "";
-
-         // Args (optional string array)
-         string[] args = Array.Empty<string>();
-         JArray argsArray = root.Value<JArray>("args");
-
-         if (argsArray != null)
-         {
-            var argList = new List<string>();
-
-            foreach (var item in argsArray)
+            foreach (var item in posArray)
             {
-               argList.Add(item.ToString());
+               positionals.Add(item.ToString());
             }
-
-            args = argList.ToArray();
          }
 
-         // Options (optional object)
-         Dictionary<string, object> options = null;
-         JObject optsObj = root.Value<JObject>("options");
-
-         if (optsObj != null)
+         if (positionals.Count == 0)
          {
-            options = ParseOptions(optsObj);
+            throw new CLIException(Constants.Error.ParseError, "Missing positionals.");
          }
 
-         // Help flag
-         bool help = options != null && options.ContainsKey("help");
+         // Optionals
+         var optObj = root.Value<JObject>("optionals");
 
-         return new ParsedRequest
+         if (optObj != null)
          {
-            Group   = group,
-            Command = command,
-            Args    = args,
-            Options = options,
-            Help    = help
+            foreach (var prop in optObj.Properties())
+            {
+               var values = new List<string>();
+
+               if (prop.Value.Type == JTokenType.Array)
+               {
+                  foreach (var v in (JArray)prop.Value)
+                  {
+                     values.Add(v.ToString());
+                  }
+               }
+               else if (prop.Value.Type != JTokenType.Null)
+               {
+                  values.Add(prop.Value.ToString());
+               }
+
+               optionals[prop.Name] = values;
+            }
+         }
+
+         return new CommandArgs
+         {
+            Positionals = positionals,
+            Optionals   = optionals
          };
-      }
-
-      // ------------------------------------------------------------
-      /// <summary>
-      /// Parses a JObject into a Dictionary.
-      /// </summary>
-      // ------------------------------------------------------------
-      private static Dictionary<string, object> ParseOptions(JObject obj)
-      {
-         var dict = new Dictionary<string, object>();
-
-         foreach (var prop in obj.Properties())
-         {
-            dict[prop.Name] = ParseJToken(prop.Value);
-         }
-
-         return dict;
-      }
-
-      // ------------------------------------------------------------
-      /// <summary>
-      /// Converts a JToken to a C# object.
-      /// </summary>
-      // ------------------------------------------------------------
-      private static object ParseJToken(JToken token)
-      {
-         switch (token.Type)
-         {
-            case JTokenType.String:
-               return token.Value<string>();
-
-            case JTokenType.Integer:
-               return token.Value<int>();
-
-            case JTokenType.Float:
-               return token.Value<double>();
-
-            case JTokenType.Boolean:
-               return token.Value<bool>();
-
-            case JTokenType.Null:
-               return null;
-
-            case JTokenType.Array:
-               var list = new List<object>();
-               foreach (var item in (JArray)token)
-               {
-                  list.Add(ParseJToken(item));
-               }
-               return list;
-
-            case JTokenType.Object:
-               var dict = new Dictionary<string, object>();
-               foreach (var prop in ((JObject)token).Properties())
-               {
-                  dict[prop.Name] = ParseJToken(prop.Value);
-               }
-               return dict;
-
-            default:
-               return token.ToString();
-         }
       }
 
    #endregion
@@ -283,61 +204,43 @@ namespace inonego.UniCLI.Core
 
       // ------------------------------------------------------------
       /// <summary>
-      /// Creates a help response for --help requests.
+      /// Creates a help response from the command registry.
       /// </summary>
       // ------------------------------------------------------------
-      private static string CreateHelpResponse(string group, string command)
+      private static string CreateHelpResponse(CommandArgs parsed)
       {
          JToken result;
 
-         if (string.IsNullOrEmpty(group) || group == "help")
-         {
-            var groups = new JArray();
+         string root = parsed[0];
 
-            foreach (var kvp in CLIRegistry.GetGroups())
+         if (string.IsNullOrEmpty(root) || root == "help")
+         {
+            // List all roots
+            var roots = new JArray();
+
+            foreach (string r in CLIRegistry.GetRoots())
             {
-               groups.Add(new JObject
-               {
-                  ["name"]        = kvp.Key,
-                  ["description"] = kvp.Value
-               });
+               roots.Add(new JObject { ["name"] = r });
             }
 
-            result = groups;
+            result = roots;
          }
-         else if (string.IsNullOrEmpty(command))
+         else
          {
-            var cmds = CLIRegistry.GetCommands(group);
+            // List commands under this root
+            var cmds = CLIRegistry.GetCommands(root);
             var list = new JArray();
 
             foreach (var cmd in cmds)
             {
                list.Add(new JObject
                {
-                  ["name"]        = cmd.Name,
+                  ["name"]        = cmd.Key,
                   ["description"] = cmd.Description
                });
             }
 
             result = list;
-         }
-         else
-         {
-            var cmds = CLIRegistry.GetCommands(group);
-            var cmd  = cmds.Find(c => c.Name == command);
-
-            if (cmd != null)
-            {
-               result = new JObject
-               {
-                  ["name"]        = cmd.Name,
-                  ["description"] = cmd.Description
-               };
-            }
-            else
-            {
-               result = JValue.CreateNull();
-            }
          }
 
          return CreateSuccessResponse(result);

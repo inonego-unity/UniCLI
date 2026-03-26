@@ -328,7 +328,7 @@
 .cli-status-label--running { color: var(--c-green); }
 .cli-status-label--stopped { color: var(--c-red); }
 
-.cli-port-label {
+.cli-pipe-label {
     font-size: 11px;
     color: var(--c-text-2);
     margin-left: 10px;

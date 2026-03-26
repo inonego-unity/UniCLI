@@ -6,11 +6,12 @@ using UnityEngine;
 
 using UnityEditor;
 
+using InoCLI;
+
 using Newtonsoft.Json.Linq;
 
 namespace inonego.UniCLI.Group
 {
-   using Attribute;
    using Core;
 
    // ============================================================
@@ -18,8 +19,7 @@ namespace inonego.UniCLI.Group
    /// GameObject manipulation commands.
    /// </summary>
    // ============================================================
-   [CLIGroup("go", "GameObject manipulation")]
-   public class GoCommandGroup
+   public static class GoCommandGroup
    {
 
    #region Commands
@@ -29,18 +29,18 @@ namespace inonego.UniCLI.Group
       /// Creates a new GameObject.
       /// </summary>
       // ------------------------------------------------------------
-      [CLICommand("create", "Create a new GameObject")]
+      [CLICommand("go", "create", description = "Create a new GameObject")]
       public static object Create(CommandArgs args)
       {
-         string name = args.Arg(0);
+         string name = args[0];
 
          if (string.IsNullOrEmpty(name))
          {
-            throw new CLIException(ErrorCode.INVALID_ARGS, "Name required.");
+            throw new CLIException(Constants.Error.InvalidArgs, "Name required.");
          }
 
          GameObject go;
-         string primitive = args.Option("primitive");
+         string primitive = args["primitive"];
 
          if (primitive != null && Enum.TryParse<PrimitiveType>(primitive, true, out var primType))
          {
@@ -52,7 +52,7 @@ namespace inonego.UniCLI.Group
             go = new GameObject(name);
          }
 
-         string parentId = args.Option("parent");
+         string parentId = args["parent"];
 
          if (parentId != null && int.TryParse(parentId, out int pid))
          {
@@ -74,12 +74,12 @@ namespace inonego.UniCLI.Group
       /// Gets or sets the active state.
       /// </summary>
       // ------------------------------------------------------------
-      [CLICommand("active", "Get or set active state")]
+      [CLICommand("go", "active", description = "Get or set active state")]
       public static object Active(CommandArgs args)
       {
          var go = GetTargetGO(args, 0);
 
-         string value = args.Arg(1);
+         string value = args[1];
 
          if (value != null)
          {
@@ -110,7 +110,7 @@ namespace inonego.UniCLI.Group
       /// Gets or sets the parent.
       /// </summary>
       // ------------------------------------------------------------
-      [CLICommand("parent", "Get or set parent")]
+      [CLICommand("go", "parent", description = "Get or set parent")]
       public static object Parent(CommandArgs args)
       {
          var go = GetTargetGO(args, 0);
@@ -122,7 +122,7 @@ namespace inonego.UniCLI.Group
          }
          else
          {
-            string parentId = args.Arg(1);
+            string parentId = args[1];
 
             if (parentId != null && int.TryParse(parentId, out int pid))
             {
@@ -130,7 +130,7 @@ namespace inonego.UniCLI.Group
 
                if (parent == null)
                {
-                  throw new CLIException(ErrorCode.INVALID_ARGS, $"Parent {pid} not found.");
+                  throw new CLIException(Constants.Error.InvalidArgs, $"Parent {pid} not found.");
                }
 
                Undo.RecordObject(go.transform, "Set Parent");
@@ -152,11 +152,11 @@ namespace inonego.UniCLI.Group
       /// Gets or sets the tag.
       /// </summary>
       // ------------------------------------------------------------
-      [CLICommand("tag", "Get or set tag")]
+      [CLICommand("go", "tag", description = "Get or set tag")]
       public static object Tag(CommandArgs args)
       {
          var go = GetTargetGO(args, 0);
-         string value = args.Arg(1);
+         string value = args[1];
 
          if (value != null)
          {
@@ -176,11 +176,11 @@ namespace inonego.UniCLI.Group
       /// Gets or sets the layer.
       /// </summary>
       // ------------------------------------------------------------
-      [CLICommand("layer", "Get or set layer")]
+      [CLICommand("go", "layer", description = "Get or set layer")]
       public static object Layer(CommandArgs args)
       {
          var go = GetTargetGO(args, 0);
-         string value = args.Arg(1);
+         string value = args[1];
 
          if (value != null && int.TryParse(value, out int layer))
          {
@@ -200,11 +200,11 @@ namespace inonego.UniCLI.Group
       /// Gets or sets the scene.
       /// </summary>
       // ------------------------------------------------------------
-      [CLICommand("scene", "Get or set scene")]
+      [CLICommand("go", "scene", description = "Get or set scene")]
       public static object Scene(CommandArgs args)
       {
          var go = GetTargetGO(args, 0);
-         string value = args.Arg(1);
+         string value = args[1];
 
          if (value != null && int.TryParse(value, out int handle))
          {
@@ -232,7 +232,7 @@ namespace inonego.UniCLI.Group
       /// Lists children of a GameObject.
       /// </summary>
       // ------------------------------------------------------------
-      [CLICommand("children", "List children")]
+      [CLICommand("go", "children", description = "List children")]
       public static object Children(CommandArgs args)
       {
          var go = GetTargetGO(args, 0);
@@ -252,18 +252,18 @@ namespace inonego.UniCLI.Group
       // ------------------------------------------------------------
       private static GameObject GetTargetGO(CommandArgs args, int argIndex)
       {
-         int id = args.ArgInt(argIndex);
+         int id = args.GetInt(argIndex, 0);
 
          if (id == 0)
          {
-            throw new CLIException(ErrorCode.INVALID_ARGS, "GameObject instance ID required.");
+            throw new CLIException(Constants.Error.InvalidArgs, "GameObject instance ID required.");
          }
 
          var obj = EditorUtility.EntityIdToObject(id) as GameObject;
 
          if (obj == null)
          {
-            throw new CLIException(ErrorCode.INVALID_ARGS, $"GameObject {id} not found.");
+            throw new CLIException(Constants.Error.InvalidArgs, $"GameObject {id} not found.");
          }
 
          return obj;

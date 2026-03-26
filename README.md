@@ -20,11 +20,11 @@ UniCLI lets AI agents (Claude, etc.) and scripts control the Unity Editor throug
 ## Architecture
 
 ```
-Claude / Script → unicli.exe → TCP → Unity Editor
+Claude / Script → unicli.exe → Named Pipe → Unity Editor
 ```
 
-- **`unicli.exe`** — .NET 8 CLI client. Thin TCP proxy.
-- **Unity Package** — TCP server inside the editor. Auto-discovers ports, survives domain reloads.
+- **`unicli.exe`** — .NET 8 CLI client. Sends commands via Named Pipe.
+- **Unity Package** — Named Pipe server inside the editor. PID-based pipe names, survives domain reloads.
 - **Instance Registry** — `~/.unicli/instances/*.json`. Multiple editors, auto-discovery.
 
 ## Repository Structure
@@ -32,7 +32,9 @@ Claude / Script → unicli.exe → TCP → Unity Editor
 ```
 UniCLI/
 ├── com.inonego.uni-cli/   ← Unity Editor Plugin (UPM)
-└── cli/                   ← CLI Client (.NET 8)
+│   └── Plugins/           ← InoCLI.dll, InoIPC.dll (netstandard2.1)
+├── cli/                   ← CLI Client (.NET 8)
+└── lib/                   ← Submodules (InoCLI, InoIPC)
 ```
 
 ## Installation
@@ -57,8 +59,6 @@ Or add directly to `Packages/manifest.json`:
 ```
 
 > **UniLua is required** — install it before or alongside UniCLI. Without it, `eval lua` will not be available.
->
-> OpenUPM support is planned. Once available: `openupm add com.inonego.uni-cli`
 
 ### 2. Claude Skill (Optional)
 
@@ -97,7 +97,7 @@ unicli go create Player --primitive cube
 cat script.cs | unicli eval cs -
 ```
 
-## Commands (16 Groups)
+## Commands
 
 ### eval — Code Evaluation
 
@@ -107,8 +107,6 @@ unicli eval cs '<code>' --using Ns   # with extra using
 unicli eval lua '<code>'             # Lua (UniLua, interpreted — faster execution)
 cat file.cs | unicli eval cs -       # stdin pipe (POSIX "-")
 ```
-
-> **Lua is faster** — C# requires runtime compilation on each call, while Lua is interpreted and executes instantly. Use Lua for quick queries, C# for complex operations that need full .NET API access.
 
 ### scene — Scene Management
 
@@ -172,10 +170,9 @@ unicli editor window list            # list open windows
 unicli editor window focus <id>      # focus window
 unicli editor window close <id>      # close window
 unicli editor modal                  # detect native modal dialog
-unicli editor modal click "<button>" # click modal button (e.g. "Save", "Don't Save")
+unicli editor modal click "<button>" # click modal button
+unicli editor sdb                    # get SDB debugger port for MonoDebug
 ```
-
-> Modal dialogs (e.g. "Save Scene?") block the main thread. `editor modal` detects them via Win32 API without needing the main thread. Commands that trigger a modal automatically return a `MODAL` error with button info.
 
 ### console — Console Logs
 
@@ -204,7 +201,7 @@ unicli record stop                   # stop recording
 
 ```bash
 unicli prefab load <path>            # load for editing
-unicli prefab unload <root_id>       # unload (root_id from load)
+unicli prefab unload <root_id>       # unload
 unicli prefab save <id> <path>       # save as prefab
 unicli prefab apply <id>             # apply overrides
 unicli prefab revert <id>            # revert overrides
@@ -219,36 +216,53 @@ unicli package install <id>          # install (name or git URL)
 unicli package rm <id>               # remove
 ```
 
-### test / build / poll / wait — Async Operations
+### test — Test Runner
 
 ```bash
 unicli test run                      # run tests [--mode edit|play] → job_id
 unicli test list                     # list tests [--mode edit|play] → job_id
+```
+
+### build — Project Build
+
+```bash
 unicli build                         # build [--target] [--path] [--run] → job_id
+```
+
+### poll — Async Job Status
+
+```bash
 unicli poll <job_id>                 # poll job status
+```
+
+### wait — Condition Wait
+
+```bash
 unicli wait <condition>              # wait for condition [--timeout <s>]
 ```
 
-> Wait conditions: `not_compiling`, `not_playing`, `compiling`, `playing`
+> Conditions: `not_compiling`, `not_playing`, `compiling`, `playing`
+> Note: `editor play`, `editor stop`, `asset refresh` auto-wait by default. Use `--no-wait` to skip.
 
 ### ping — Connectivity
 
 ```bash
 unicli ping
-# {"success":true,"result":{"port":18960,"project":"MyGame","unity":"6000.3.7f1","platform":"StandaloneWindows64"}}
+# {"success":true,"result":{"pipe":"unicli-1234","project":"MyGame","unity":"6000.3.7f1","platform":"StandaloneWindows64"}}
 ```
 
 ## Global Options
 
 | Option | Description |
 |--------|-------------|
-| `--port <n>` | Server port (overrides auto-discovery) |
+| `--pipe <name>` | Named Pipe name (overrides auto-discovery) |
 | `--project <name>` | Select Unity project by name (substring match) |
 | `--pretty` | Pretty-print JSON output |
 | `--timeout <s>` | Connection/wait timeout in seconds |
+| `--no-wait` | Skip auto-wait for domain-reload commands |
 | `--help` | Show help |
 
-**Port resolution order**: `--port` > `UNICLI_PORT` env var > instance registry > default (18960)
+**Pipe resolution order**: `--pipe` > `UNICLI_PIPE` env var > instance registry > pipe discovery
 
 ## Output Format
 
@@ -263,27 +277,24 @@ All commands return JSON:
 
 Open **Window > UniCLI Settings** in the Unity Editor:
 
-- **Port**: Base TCP server port (default: 18960, auto-increments if in use)
 - **Auto-Start**: Start server on editor launch
 - **Enabled**: Master toggle
 
 ## Custom Commands
 
-Add your own commands using the attribute pattern:
+Add your own commands using the `[CLICommand]` attribute from InoCLI:
 
 ```csharp
-using inonego.UniCLI.Attribute;
-using inonego.UniCLI.Core;
+using InoCLI;
 
 namespace MyProject
 {
-   [CLIGroup("my_tools", "My custom tools")]
-   public class MyToolsGroup
+   public static class MyTools
    {
-      [CLICommand("hello", "Say hello")]
+      [CLICommand("my_tools", "hello", description = "Say hello")]
       public static object Hello(CommandArgs args)
       {
-         string name = args.Arg(0);
+         string name = args[0];
          return new { message = $"Hello, {name}!" };
       }
    }
@@ -295,6 +306,13 @@ unicli my_tools hello World
 # {"success":true,"result":{"message":"Hello, World!"}}
 ```
 
+## Dependencies
+
+| Dependency | Purpose | License |
+|-----------|---------|---------|
+| [InoCLI](https://github.com/inonego/InoCLI) | CLI framework (parser + command registry) | MIT |
+| [InoIPC](https://github.com/inonego/InoIPC) | IPC framework (Named Pipe + frame protocol) | MIT |
+
 ## License
 
-[MIT](com.inonego.uni-cli/LICENSE)
+[MIT](LICENSE)

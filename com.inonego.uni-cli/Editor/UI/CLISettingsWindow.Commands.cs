@@ -6,6 +6,8 @@ using UnityEditor;
 using UnityEditor.UIElements;
 using UnityEngine.UIElements;
 
+using InoCLI;
+
 namespace inonego.UniCLI
 {
    using Core;
@@ -70,7 +72,7 @@ namespace inonego.UniCLI
       /// Shows the command detail overlay near the hovered item.
       /// </summary>
       // ------------------------------------------------------------
-      private void ShowCommandOverlay(CLIRegistry.CommandInfo command, VisualElement anchor)
+      private void ShowCommandOverlay(CommandInfo command, VisualElement anchor)
       {
          if (commandOverlay == null || commandOverlay.parent == null)
          {
@@ -91,7 +93,7 @@ namespace inonego.UniCLI
 
          headerRow.Add(badge);
 
-         var nameLabel = new Label(command.FullName);
+         var nameLabel = new Label(command.Key);
 
          nameLabel.AddToClassList("cli-overlay-name");
 
@@ -156,7 +158,7 @@ namespace inonego.UniCLI
 
          commandsContainer.Clear();
 
-         List<CLIRegistry.CommandInfo> commands = CLIRegistry.GetAllCommands();
+         List<CommandInfo> commands = CLIRegistry.GetAllCommands();
 
          if (commands == null || commands.Count == 0)
          {
@@ -178,35 +180,26 @@ namespace inonego.UniCLI
 
          // Group by group name
          var groups = commands
-            .GroupBy(c => c.Group)
+            .GroupBy(c => c.Path.Length > 0 ? c.Path[0] : "")
             .OrderBy(g => g.Key);
 
          foreach (var group in groups)
          {
-            // Group header with description
-            string headerText = group.Key;
-            string groupDesc  = group.First().GroupDescription;
-
-            if (!string.IsNullOrEmpty(groupDesc))
-            {
-               headerText += $"  —  {groupDesc}";
-            }
-
-            var groupHeader = new Label(headerText);
+            var groupHeader = new Label(group.Key);
 
             groupHeader.AddToClassList("cli-group-header");
             groupHeader.name = $"group-{group.Key}";
 
             commandsContainer.Add(groupHeader);
 
-            foreach (CLIRegistry.CommandInfo command in group)
+            foreach (CommandInfo command in group)
             {
                commandCount++;
 
                var commandItem = new VisualElement();
 
                commandItem.AddToClassList("cli-action");
-               commandItem.name = $"command-{command.FullName}";
+               commandItem.name = $"command-{command.Key}";
 
                var badge = new Label("CMD");
 
@@ -215,14 +208,14 @@ namespace inonego.UniCLI
 
                commandItem.Add(badge);
 
-               var nameLabel = new Label(command.FullName);
+               var nameLabel = new Label(command.Key);
 
                nameLabel.AddToClassList("cli-action-name");
 
                commandItem.Add(nameLabel);
 
                // Hover overlay
-               CLIRegistry.CommandInfo captured = command;
+               CommandInfo captured = command;
 
                commandItem.RegisterCallback<MouseEnterEvent>(_ => ShowCommandOverlay(captured, commandItem));
                commandItem.RegisterCallback<MouseLeaveEvent>(_ => HideCommandOverlay());

@@ -7,11 +7,12 @@ using UnityEngine;
 using UnityEditor;
 using UnityEditor.Search;
 
+using InoCLI;
+
 using Newtonsoft.Json.Linq;
 
 namespace inonego.UniCLI.Group
 {
-   using Attribute;
    using Core;
 
    // ============================================================
@@ -19,8 +20,7 @@ namespace inonego.UniCLI.Group
    /// Unity Search API commands.
    /// </summary>
    // ============================================================
-   [CLIGroup("search", "Unity Search")]
-   public class SearchCommandGroup
+   public static class SearchCommandGroup
    {
 
    #region Commands
@@ -30,17 +30,17 @@ namespace inonego.UniCLI.Group
       /// Searches using Unity Search API.
       /// </summary>
       // ------------------------------------------------------------
-      [CLICommand("", "Search using Unity Search")]
+      [CLICommand("search", description = "Search using Unity Search")]
       public static object Query(CommandArgs args)
       {
-         string query = args.Arg(0);
+         string query = args[0];
 
          if (string.IsNullOrEmpty(query))
          {
-            throw new CLIException(ErrorCode.INVALID_ARGS, "Search query required.");
+            throw new CLIException(Constants.Error.InvalidArgs, "Search query required.");
          }
 
-         string provider = args.Option("provider");
+         string provider = args["provider"];
 
          SearchContext context;
 

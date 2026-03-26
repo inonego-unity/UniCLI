@@ -6,6 +6,8 @@ using System.Linq;
 using System.Reflection;
 using System.Text;
 
+using InoCLI;
+
 using Microsoft.CSharp;
 
 namespace inonego.UniCLI.Group
@@ -46,14 +48,14 @@ namespace inonego.UniCLI.Group
       // ------------------------------------------------------------
       public static (Assembly assembly, string className) Compile(CommandArgs args)
       {
-         string code = args.Arg(0);
+         string code = args[0];
 
          if (string.IsNullOrEmpty(code))
          {
-            throw new CLIException(ErrorCode.INVALID_ARGS, "Code argument required.");
+            throw new CLIException(Constants.Error.InvalidArgs, "Code argument required.");
          }
 
-         string[] usings   = args.OptionArray("using");
+         string[] usings   = args.All("using", new List<string>()).ToArray();
          string   cacheKey = BuildCacheKey(code, usings);
 
          if (evalCache.TryGetValue(cacheKey, out CachedEval cached))
@@ -68,7 +70,7 @@ namespace inonego.UniCLI.Group
 
          if (compiled == null)
          {
-            throw new CLIException(ErrorCode.COMPILE_ERROR, string.Join("\n", errors));
+            throw new CLIException(Constants.Error.CompileError, string.Join("\n", errors));
          }
 
          evalCache[cacheKey] = new CachedEval { Assembly = compiled, ClassName = className };
@@ -87,14 +89,14 @@ namespace inonego.UniCLI.Group
 
          if (type == null)
          {
-            throw new CLIException(ErrorCode.INTERNAL_ERROR, $"Type {className} not found in compiled assembly.");
+            throw new CLIException(Constants.Error.InternalError, $"Type {className} not found in compiled assembly.");
          }
 
          MethodInfo runMethod = type.GetMethod("Run", BindingFlags.Public | BindingFlags.Static);
 
          if (runMethod == null)
          {
-            throw new CLIException(ErrorCode.INTERNAL_ERROR, "Run method not found.");
+            throw new CLIException(Constants.Error.InternalError, "Run method not found.");
          }
 
          try
@@ -104,7 +106,7 @@ namespace inonego.UniCLI.Group
          catch (TargetInvocationException ex)
          {
             var inner = ex.InnerException ?? ex;
-            throw new CLIException(ErrorCode.RUNTIME_ERROR, inner.Message);
+            throw new CLIException(Constants.Error.RuntimeError, inner.Message);
          }
       }
 
