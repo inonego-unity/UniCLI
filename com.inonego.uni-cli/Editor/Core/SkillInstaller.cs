@@ -18,9 +18,8 @@ namespace inonego.UniCLI.Core
 
    #region Fields
 
-      private const string SkillName  = "inonego-uni-cli";
-      private const string PackageDir = "Packages/com.inonego.uni-cli/.claude/skills/" + SkillName;
-      private const string ProjectDir = ".claude/skills/" + SkillName;
+      private const string PackageSkillsDir = "Packages/com.inonego.uni-cli/.claude/skills";
+      private const string ProjectSkillsDir = ".claude/skills";
 
    #endregion
 
@@ -40,52 +39,96 @@ namespace inonego.UniCLI.Core
 
       // ------------------------------------------------------------
       /// <summary>
-      /// Checks if the skill is installed in the project.
+      /// Checks if any skill is installed in the project.
       /// </summary>
       // ------------------------------------------------------------
-      public static bool IsInstalled => Directory.Exists(ProjectDir);
-
-      // ------------------------------------------------------------
-      /// <summary>
-      /// Copies skill files from the package to the project.
-      /// </summary>
-      // ------------------------------------------------------------
-      public static void Sync()
+      public static bool IsInstalled
       {
-         if (!Directory.Exists(PackageDir))
+         get
          {
-            return;
-         }
+            if (!Directory.Exists(PackageSkillsDir))
+            {
+               return false;
+            }
 
-         CopyDirectory(PackageDir, ProjectDir);
+            foreach (var dir in Directory.GetDirectories(PackageSkillsDir))
+            {
+               var name = Path.GetFileName(dir);
+               var dest = Path.Combine(ProjectSkillsDir, name);
+
+               if (Directory.Exists(dest))
+               {
+                  return true;
+               }
+            }
+
+            return false;
+         }
       }
 
       // ------------------------------------------------------------
       /// <summary>
-      /// Removes the skill files from the project.
+      /// Copies all skill folders from the package to the project.
       /// </summary>
       // ------------------------------------------------------------
-      public static void Remove()
+      public static void Sync()
       {
-         if (!Directory.Exists(ProjectDir))
+         if (!Directory.Exists(PackageSkillsDir))
          {
             return;
          }
 
-         Directory.Delete(ProjectDir, true);
-
-         // Remove empty parent directories
-         var parent = Path.GetDirectoryName(ProjectDir);
-
-         while (!string.IsNullOrEmpty(parent) && Directory.Exists(parent))
+         foreach (var dir in Directory.GetDirectories(PackageSkillsDir))
          {
-            if (Directory.GetFileSystemEntries(parent).Length > 0)
+            var name = Path.GetFileName(dir);
+            var dest = Path.Combine(ProjectSkillsDir, name);
+
+            CopyDirectory(dir, dest);
+         }
+      }
+
+      // ------------------------------------------------------------
+      /// <summary>
+      /// Removes all package skill folders from the project.
+      /// </summary>
+      // ------------------------------------------------------------
+      public static void Remove()
+      {
+         if (!Directory.Exists(PackageSkillsDir))
+         {
+            return;
+         }
+
+         foreach (var dir in Directory.GetDirectories(PackageSkillsDir))
+         {
+            var name = Path.GetFileName(dir);
+            var dest = Path.Combine(ProjectSkillsDir, name);
+
+            if (!Directory.Exists(dest))
             {
-               break;
+               continue;
             }
 
-            Directory.Delete(parent);
-            parent = Path.GetDirectoryName(parent);
+            Directory.Delete(dest, true);
+         }
+
+         // Remove empty parent directories
+         if (Directory.Exists(ProjectSkillsDir) && Directory.GetFileSystemEntries(ProjectSkillsDir).Length == 0)
+         {
+            Directory.Delete(ProjectSkillsDir);
+
+            var parent = Path.GetDirectoryName(ProjectSkillsDir);
+
+            while (!string.IsNullOrEmpty(parent) && Directory.Exists(parent))
+            {
+               if (Directory.GetFileSystemEntries(parent).Length > 0)
+               {
+                  break;
+               }
+
+               Directory.Delete(parent);
+               parent = Path.GetDirectoryName(parent);
+            }
          }
       }
 

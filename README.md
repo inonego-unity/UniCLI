@@ -235,6 +235,33 @@ unicli build                         # build [--target] [--path] [--run] → job
 unicli poll <job_id>                 # poll job status
 ```
 
+### uitk — UI Toolkit Debugger
+
+All commands require `--window <id>`. Use `unicli editor window list` to get IDs.
+
+```bash
+unicli uitk inspect --window <id>                                   # visual tree (depth 1)
+unicli uitk inspect --window <id> --depth 3                         # deeper tree
+unicli uitk inspect --window <id> --path 0/2                        # subtree from path
+unicli uitk inspect --window <id> --style                           # + all resolved styles
+unicli uitk inspect --window <id> --style color --style font_size   # + selected styles only
+unicli uitk inspect --window <id> --layout                          # + computed geometry
+unicli uitk inspect --window <id> --sheet                           # + attached USS stylesheets
+unicli uitk query ".my-class" --window <id>                         # find by USS class
+unicli uitk query "#my-name" --window <id>                          # find by name
+unicli uitk query "Button" --window <id>                            # find by type
+unicli uitk class add <class> --window <id> --path <path>           # add USS class
+unicli uitk class remove <class> --window <id> --path <path>        # remove USS class
+unicli uitk class toggle <class> --window <id> --path <path>        # toggle USS class
+```
+
+Use `jq` to filter output:
+```bash
+unicli uitk inspect --window <id> --depth 2 | jq '.. | .element? // empty | {type, name, index_path}'
+unicli uitk query "Button" --window <id> | jq '.result[].element | {name, classes, index_path}'
+unicli uitk inspect --window <id> --path 0/2/1 --style | jq '.result.resolved | {color, font_size}'
+```
+
 ### wait — Condition Wait
 
 ```bash

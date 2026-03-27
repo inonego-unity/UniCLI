@@ -235,6 +235,33 @@ unicli build                         # 빌드 [--target] [--path] [--run] → jo
 unicli poll <job_id>                 # 작업 상태 조회
 ```
 
+### uitk — UI Toolkit 디버거
+
+모든 커맨드에 `--window <id>` 필수. `unicli editor window list`로 ID 조회.
+
+```bash
+unicli uitk inspect --window <id>                                   # 비주얼 트리 (depth 1)
+unicli uitk inspect --window <id> --depth 3                         # 깊이 조절
+unicli uitk inspect --window <id> --path 0/2                        # 특정 노드 하위
+unicli uitk inspect --window <id> --style                           # + 전체 resolved style
+unicli uitk inspect --window <id> --style color --style font_size   # + 선택 속성만
+unicli uitk inspect --window <id> --layout                          # + 계산된 geometry
+unicli uitk inspect --window <id> --sheet                           # + 연결된 USS 스타일시트
+unicli uitk query ".my-class" --window <id>                         # USS 클래스로 검색
+unicli uitk query "#my-name" --window <id>                          # 이름으로 검색
+unicli uitk query "Button" --window <id>                            # 타입으로 검색
+unicli uitk class add <class> --window <id> --path <path>           # USS 클래스 추가
+unicli uitk class remove <class> --window <id> --path <path>        # USS 클래스 제거
+unicli uitk class toggle <class> --window <id> --path <path>        # USS 클래스 토글
+```
+
+`jq`로 결과 필터링:
+```bash
+unicli uitk inspect --window <id> --depth 2 | jq '.. | .element? // empty | {type, name, index_path}'
+unicli uitk query "Button" --window <id> | jq '.result[].element | {name, classes, index_path}'
+unicli uitk inspect --window <id> --path 0/2/1 --style | jq '.result.resolved | {color, font_size}'
+```
+
 ### wait — 조건 대기
 
 ```bash
