@@ -1,6 +1,6 @@
 ---
 name: inonego-uni-cli
-description: Unity Editor CLI tool. Use when performing Unity editor operations — scene management, GameObject manipulation, asset operations, code evaluation, and more.
+description: Unity Editor CLI tool. Use when performing Unity editor operations — scene management, GameObject manipulation, asset operations, code evaluation, and UI Toolkit debugging.
 user-invocable: false
 ---
 
@@ -162,8 +162,47 @@ Modal is auto-detected during commands. Manual: `unicli editor modal` → `unicl
 
 | Command | Description |
 |---------|-------------|
-| (default) | Read log buffer (includes `CompileError` type) |
-| `clear` | Clear log buffer |
+| (default) | Read console logs |
+| `--type` | CompileError, Error, Warning, Log |
+| `clear` | Clear console buffer |
+
+```bash
+unicli console                                       # All logs
+unicli console --type CompileError                   # CompileError only
+unicli console --type Error --type Warning           # Error + Warning
+unicli console --type Error | jq '.result | length'  # Count errors
+```
+
+**Output format:** `type` (log type), `message` (log content), `stacktrace` (call stack array, if present)
+
+```json
+{
+  "success": true,
+  "result": [
+    {
+      "type": "Log",
+      "message": "test message",
+      "stacktrace": ["ClassName:Method ()", "OtherClass:Method (at Assets/File.cs:10)"]
+    }
+  ]
+}
+```
+
+**Filter with jq/grep (Recommended)**
+
+```bash
+unicli console | grep -c '"type"'                                                            # Count all entries
+unicli console | jq '.result[] | select(.message | contains("MyClass"))'                     # Filter by message text
+unicli console --type Error | jq '.result[] | {type, message, stacktrace: .stacktrace[:3]}'  # First 3 frames
+```
+
+**Workflow** — Check compile errors after edits
+
+```bash
+unicli console clear
+unicli asset refresh
+unicli console --type CompileError
+```
 
 ---
 
@@ -214,10 +253,10 @@ Common queries: `t:Material`, `t:Prefab`, `t:Scene`, `t:Script`, `Player`
 ## test / build / poll
 
 ```bash
-unicli test run [--mode edit|play]      # → job_id
-unicli test list [--mode edit|play]     # → job_id
+unicli test run [--mode edit|play]                           # → job_id
+unicli test list [--mode edit|play]                          # → job_id
 unicli build --path Builds/Game.exe [--target <t>] [--run]   # → job_id
-unicli poll <job_id>                    # → {"status":"running|completed|failed","result":...}
+unicli poll <job_id> # → {"status":"running|completed|failed","result":...}
 ```
 
 Build auto-saves open scenes. Windows builds require `.exe` in path.
@@ -273,3 +312,9 @@ monodebug detach                     # disconnect (requires Unity restart to rea
 ```
 
 Requires: Edit > Preferences > External Tools > Editor Attaching enabled + Unity restart.
+
+---
+
+## References
+
+- [UITK.md](references/UITK.md) — UI Toolkit visual tree inspection, USS styling, and layout debugging. Use when inspecting or debugging UITK visual trees, stylesheets, or element layouts.

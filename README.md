@@ -177,8 +177,10 @@ unicli editor sdb                    # get SDB debugger port for MonoDebug
 ### console — Console Logs
 
 ```bash
-unicli console                       # read logs
-unicli console clear                 # clear buffer
+unicli console                                  # read all logs
+unicli console --type CompileError              # filter by type
+unicli console --type Log --type Error          # multiple types
+unicli console clear                            # clear buffer
 ```
 
 ### search — Unity Search

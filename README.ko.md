@@ -177,8 +177,10 @@ unicli editor sdb                    # MonoDebug용 SDB 디버거 포트 확인
 ### console — 콘솔 로그
 
 ```bash
-unicli console                       # 로그 읽기
-unicli console clear                 # 버퍼 비우기
+unicli console                                  # 모든 로그 읽기
+unicli console --type CompileError              # 타입으로 필터링
+unicli console --type Log --type Error          # 여러 타입
+unicli console clear                            # 버퍼 비우기
 ```
 
 ### search — Unity 검색

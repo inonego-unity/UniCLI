@@ -1,7 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Linq;
+using System.Reflection;
 
 using UnityEngine;
 
@@ -18,75 +18,47 @@ namespace inonego.UniCLI.Group
 
    // ============================================================
    /// <summary>
-   /// Console log capture and filtering.
+   /// Console log capture via UnityEditor.LogEntries reflection.
    /// </summary>
    // ============================================================
-   [InitializeOnLoad]
    public static class ConsoleCommandGroup
    {
 
-   #region Fields
+   #region Reflection Cache
 
-      private static readonly List<LogEntry> logBuffer = new List<LogEntry>();
-      private static readonly object bufferLock = new object();
-      private const int MaxBufferSize = 500;
-
-      private struct LogEntry
-      {
-         public string    Message;
-         public string    StackTrace;
-         public string    Type;
-         public DateTime  Timestamp;
-      }
-
-   #endregion
-
-   #region Constructors
+      private static readonly Type          LogEntriesType;
+      private static readonly Type          LogEntryType;
+      private static readonly MethodInfo    MethodStart;
+      private static readonly MethodInfo    MethodEnd;
+      private static readonly MethodInfo    MethodGetEntry;
+      private static readonly MethodInfo    MethodClear;
+      private static readonly FieldInfo     FieldMessage;
+      private static readonly FieldInfo     FieldMode;
+      private static readonly FieldInfo     FieldCallstackStart;
 
       // ======================================================================
       /// <summary>
-      /// Registers log and compilation error callbacks on domain reload.
+      /// Initialize reflection cache for LogEntries API.
       /// </summary>
       // ======================================================================
       static ConsoleCommandGroup()
       {
-         Application.logMessageReceived += OnLogMessage;
-         CompilationPipeline.assemblyCompilationFinished += OnCompilationFinished;
-      }
+         var asm = typeof(UnityEditor.Editor).Assembly;
 
-      private static void OnLogMessage(string message, string stackTrace, LogType type)
-      {
-         AddEntry(message, stackTrace, type.ToString());
-      }
+         LogEntriesType = asm.GetType("UnityEditor.LogEntries");
+         LogEntryType   = asm.GetType("UnityEditor.LogEntry");
 
-      private static void OnCompilationFinished(string assemblyPath, CompilerMessage[] messages)
-      {
-         foreach (var msg in messages)
-         {
-            if (msg.type == CompilerMessageType.Error)
-            {
-               AddEntry(msg.message, $"{msg.file}({msg.line},{msg.column})", "CompileError");
-            }
-         }
-      }
+         const BindingFlags staticPublic = BindingFlags.Static | BindingFlags.Public;
+         const BindingFlags instancePublic = BindingFlags.Instance | BindingFlags.Public;
 
-      private static void AddEntry(string message, string stackTrace, string type)
-      {
-         lock (bufferLock)
-         {
-            if (logBuffer.Count >= MaxBufferSize)
-            {
-               logBuffer.RemoveAt(0);
-            }
+         MethodStart      = LogEntriesType?.GetMethod("StartGettingEntries", staticPublic);
+         MethodEnd        = LogEntriesType?.GetMethod("EndGettingEntries", staticPublic);
+         MethodGetEntry   = LogEntriesType?.GetMethod("GetEntryInternal", staticPublic);
+         MethodClear      = LogEntriesType?.GetMethod("Clear", staticPublic);
 
-            logBuffer.Add(new LogEntry
-            {
-               Message    = message,
-               StackTrace = stackTrace,
-               Type       = type,
-               Timestamp  = DateTime.Now
-            });
-         }
+         FieldMessage         = LogEntryType?.GetField("message", instancePublic);
+         FieldMode            = LogEntryType?.GetField("mode", instancePublic);
+         FieldCallstackStart  = LogEntryType?.GetField("callstackTextStartUTF8", instancePublic);
       }
 
    #endregion
@@ -95,64 +67,117 @@ namespace inonego.UniCLI.Group
 
       // ------------------------------------------------------------
       /// <summary>
-      /// Reads console log entries with optional filtering.
+      /// Reads console log entries from Unity LogEntries.
       /// </summary>
       // ------------------------------------------------------------
       [CLICommand("console", description = "Read console logs")]
       public static object Read(CommandArgs args)
       {
-         string typeFilter = args["type"];
-         string sinceStr   = args["since"];
-
-         DateTime? since = null;
-
-         if (sinceStr != null && DateTime.TryParse(sinceStr, out DateTime parsed))
+         if (LogEntriesType == null)
          {
-            since = parsed;
+            return new JArray();
          }
 
-         lock (bufferLock)
+         var typeFilters = args.All("type", new List<string>());
+         var typeFilterSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+         foreach (var filter in typeFilters)
          {
-            IEnumerable<LogEntry> filtered = logBuffer;
+            typeFilterSet.Add(filter);
+         }
 
-            if (typeFilter != null)
+         var result = new JArray();
+
+         try
+         {
+            int count = (int)MethodStart.Invoke(null, null);
+
+            for (int i = 0; i < count; i++)
             {
-               filtered = filtered.Where(e => e.Type.Equals(typeFilter, StringComparison.OrdinalIgnoreCase));
-            }
+               var entryObj = Activator.CreateInstance(LogEntryType);
+               object[] getEntryArgs = { i, entryObj };
 
-            if (since.HasValue)
-            {
-               filtered = filtered.Where(e => e.Timestamp >= since.Value);
-            }
+               bool success = (bool)MethodGetEntry.Invoke(null, getEntryArgs);
+               if (!success) continue;
 
-            var result = new JArray();
+               entryObj = getEntryArgs[1];
 
-            foreach (var entry in filtered)
-            {
-               result.Add(new JObject
+               string fullMessage = (string)FieldMessage.GetValue(entryObj) ?? "";
+               int mode           = (int)FieldMode.GetValue(entryObj);
+               int callstackStart = (int)FieldCallstackStart.GetValue(entryObj);
+
+               string type = ModeToType(mode);
+
+               // Filter by type if specified (include if typeFilterSet is empty or matches)
+               if (typeFilterSet.Count > 0 && !typeFilterSet.Contains(type))
                {
-                  ["type"]       = entry.Type,
-                  ["message"]    = entry.Message,
-                  ["stacktrace"] = entry.StackTrace,
-                  ["timestamp"]  = entry.Timestamp.ToString("o")
-               });
-            }
+                  continue;
+               }
 
-            return result;
+               // Split message and stacktrace
+               string message = fullMessage;
+               var stacktrace = new JArray();
+
+               if (callstackStart > 0 && callstackStart < fullMessage.Length)
+               {
+                  message = fullMessage[..callstackStart].TrimEnd('\n');
+                  var stackLines = fullMessage[callstackStart..].Split('\n', System.StringSplitOptions.RemoveEmptyEntries);
+                  foreach (var line in stackLines)
+                  {
+                     stacktrace.Add(line);
+                  }
+               }
+
+               var entryJson = new JObject
+               {
+                  ["type"]    = type,
+                  ["message"] = message
+               };
+
+               if (stacktrace.Count > 0)
+               {
+                  entryJson["stacktrace"] = stacktrace;
+               }
+
+               result.Add(entryJson);
+            }
          }
+         finally
+         {
+            MethodEnd.Invoke(null, null);
+         }
+
+         return result;
       }
 
-      // ------------------------------------------------------------
+      // ======================================================================
       /// <summary>
-      /// Clears the log buffer.
+      /// Convert LogEntry mode flags to human-readable type string.
       /// </summary>
-      // ------------------------------------------------------------
+      // ======================================================================
+      private static string ModeToType(int mode)
+      {
+         // Flags based on Unity's LogMessageFlags enum
+         if ((mode & 2048) != 0) return "CompileError";     // ScriptCompileError
+         if ((mode & 4096) != 0) return "CompileWarning";   // ScriptCompileWarning
+         if ((mode & 256) != 0) return "Error";             // ScriptingError
+         if ((mode & 512) != 0) return "Warning";           // ScriptingWarning
+         if ((mode & 1) != 0) return "Error";               // Error
+         if ((mode & 2) != 0) return "Warning";             // Warning
+         return "Log";
+      }
+
+      // ======================================================================
+      /// <summary>
+      /// Clears the console log buffer.
+      /// </summary>
+      // ======================================================================
       [CLICommand("console", "clear", description = "Clear console log buffer")]
       public static object Clear(CommandArgs args)
       {
-         lock (bufferLock)
+         if (MethodClear != null)
          {
-            logBuffer.Clear();
+            MethodClear.Invoke(null, null);
          }
 
          return null;

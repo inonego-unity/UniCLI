@@ -22,6 +22,8 @@ namespace UniCLI
 
       static int Main(string[] args)
       {
+         Console.OutputEncoding = Encoding.UTF8;
+
          if (args.Length == 0 || args[0] == "--help" || args[0] == "-h")
          {
             PrintHelp();
