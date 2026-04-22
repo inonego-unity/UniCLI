@@ -14,11 +14,11 @@ namespace inonego.UniCLI.Group
 {
    using Core;
 
-   // ============================================================
+   // =====================================================================
    /// <summary>
    /// Universal Object commands (works on any UnityEngine.Object).
    /// </summary>
-   // ============================================================
+   // =====================================================================
    public static class ObjectCommandGroup
    {
 
@@ -89,34 +89,50 @@ namespace inonego.UniCLI.Group
          return null;
       }
 
-      // ------------------------------------------------------------
+      // --------------------------------------------------------------------
       /// <summary>
       /// Selects objects in the editor.
+      /// Returns {selected:[...], not_found:[...]} so callers can detect
+      /// partial / total resolution failures.
       /// </summary>
-      // ------------------------------------------------------------
+      // --------------------------------------------------------------------
       [CLICommand("object", "select", description = "Select objects in editor")]
       public static object Select(CommandArgs args)
       {
-         var objects = new List<UnityEngine.Object>();
+         var objects  = new List<UnityEngine.Object>();
+         var selected = new JArray();
+         var notFound = new JArray();
 
          for (int i = 0; i < args.Count; i++)
          {
             int id = args.GetInt(i, 0);
 
-            if (id != 0)
+            if (id == 0)
             {
-               var obj = EditorUtility.EntityIdToObject(id);
+               notFound.Add(id);
+               continue;
+            }
 
-               if (obj != null)
-               {
-                  objects.Add(obj);
-               }
+            var obj = EditorUtility.EntityIdToObject(id);
+
+            if (obj != null)
+            {
+               objects.Add(obj);
+               selected.Add(id);
+            }
+            else
+            {
+               notFound.Add(id);
             }
          }
 
          Selection.objects = objects.ToArray();
 
-         return null;
+         return new JObject
+         {
+            ["selected"]  = selected,
+            ["not_found"] = notFound
+         };
       }
 
       // ------------------------------------------------------------

@@ -2,6 +2,7 @@ using System;
 using System.CodeDom.Compiler;
 using System.Collections;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Text;
@@ -159,21 +160,69 @@ namespace inonego.UniCLI.Group
       // ----------------------------------------------------------------------
       /// <summary>
       /// Compiles source code using CSharpCodeProvider.
-      /// Returns the compiled assembly and any error messages.
+      /// References are passed via a response file (@file) to avoid the
+      /// Windows CreateProcess cmdline length limit (~32k) when the project
+      /// has many assemblies.
       /// </summary>
       // ----------------------------------------------------------------------
       private static (Assembly assembly, List<string> errors) TryCompile(string source)
       {
-         var errors   = new List<string>();
-         var provider = new CSharpCodeProvider();
+         var errors     = new List<string>();
+         var provider   = new CSharpCodeProvider();
+         var references = CollectReferences();
 
-         var parameters = new CompilerParameters
+         string rspPath = Path.Combine(Path.GetTempPath(), $"unicli_refs_{Guid.NewGuid():N}.rsp");
+
+         try
          {
-            GenerateInMemory      = true,
-            GenerateExecutable    = false,
-            TreatWarningsAsErrors = false
-         };
+            var sb = new StringBuilder();
 
+            foreach (string path in references)
+            {
+               sb.Append("-r:\"").Append(path).Append("\"\n");
+            }
+
+            File.WriteAllText(rspPath, sb.ToString(), Encoding.UTF8);
+
+            var parameters = new CompilerParameters
+            {
+               GenerateInMemory      = true,
+               GenerateExecutable    = false,
+               TreatWarningsAsErrors = false,
+               CompilerOptions       = $"@\"{rspPath}\""
+            };
+
+            var results = provider.CompileAssemblyFromSource(parameters, source);
+
+            if (results.Errors.HasErrors)
+            {
+               foreach (CompilerError error in results.Errors)
+               {
+                  if (!error.IsWarning)
+                  {
+                     errors.Add($"({error.Line},{error.Column}): {error.ErrorText}");
+                  }
+               }
+
+               return (null, errors);
+            }
+
+            return (results.CompiledAssembly, errors);
+         }
+         finally
+         {
+            try { File.Delete(rspPath); } catch {}
+         }
+      }
+
+      // ----------------------------------------------------------------------
+      /// <summary>
+      /// Collects unique referenced assembly locations for compilation.
+      /// </summary>
+      // ----------------------------------------------------------------------
+      private static List<string> CollectReferences()
+      {
+         var list  = new List<string>();
          var added = new HashSet<string>();
 
          foreach (var asm in AppDomain.CurrentDomain.GetAssemblies())
@@ -202,27 +251,12 @@ namespace inonego.UniCLI.Group
                   continue;
                }
 
-               parameters.ReferencedAssemblies.Add(asm.Location);
+               list.Add(asm.Location);
             }
             catch {}
          }
 
-         var results = provider.CompileAssemblyFromSource(parameters, source);
-
-         if (results.Errors.HasErrors)
-         {
-            foreach (CompilerError error in results.Errors)
-            {
-               if (!error.IsWarning)
-               {
-                  errors.Add($"({error.Line},{error.Column}): {error.ErrorText}");
-               }
-            }
-
-            return (null, errors);
-         }
-
-         return (results.CompiledAssembly, errors);
+         return list;
       }
 
       // ------------------------------------------------------------

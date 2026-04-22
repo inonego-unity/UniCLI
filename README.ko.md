@@ -138,7 +138,7 @@ unicli go children <id>              # 자식 목록 [--recursive]
 unicli object instantiate <id>       # 복제 [--parent <id>] [--name]
 unicli object destroy <id>           # 삭제
 unicli object ping <id>              # 에디터에서 하이라이트
-unicli object select <id...>         # 선택
+unicli object select <id...>         # 선택 → {selected, not_found}
 unicli object name <id> [name]       # 이름 조회/설정
 ```
 
@@ -285,13 +285,15 @@ unicli ping
 | 옵션 | 설명 |
 |------|------|
 | `--pipe <name>` | Named Pipe 이름 (자동 탐색 대신 직접 지정) |
-| `--project <name>` | 프로젝트 이름으로 선택 (부분 문자열 매칭) |
+| `--project <str>` | 프로젝트 선택 (이름 또는 경로 부분 문자열 매칭) |
 | `--pretty` | JSON 포맷팅 출력 |
 | `--timeout <초>` | 연결/대기 타임아웃 |
 | `--no-wait` | 도메인 리로드 명령의 자동 대기 건너뛰기 |
 | `--help` | 도움말 |
 
 **파이프 해석 순서**: `--pipe` > `UNICLI_PIPE` 환경변수 > 인스턴스 레지스트리 > 파이프 탐색
+
+**다중 인스턴스**: 2개 이상 Unity 에디터가 열려 있으면 자동 탐색이 `AMBIGUOUS_INSTANCE` 에러로 파이프 목록을 내놓음 — `--project` 또는 `--pipe`로 지정. 여러 후보 매칭 시 `project_name` 완전 일치가 있으면 그것이 선택됨. `UNICLI_AUTO_PICK=1`로 기존 자동 선택 복원.
 
 ## 출력 형식
 

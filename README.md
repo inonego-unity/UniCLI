@@ -138,7 +138,7 @@ unicli go children <id>              # list children [--recursive]
 unicli object instantiate <id>       # clone [--parent <id>] [--name]
 unicli object destroy <id>           # destroy
 unicli object ping <id>              # highlight in editor
-unicli object select <id...>         # set selection
+unicli object select <id...>         # set selection → {selected, not_found}
 unicli object name <id> [name]       # get/set name
 ```
 
@@ -285,13 +285,15 @@ unicli ping
 | Option | Description |
 |--------|-------------|
 | `--pipe <name>` | Named Pipe name (overrides auto-discovery) |
-| `--project <name>` | Select Unity project by name (substring match) |
+| `--project <str>` | Select Unity project (substring match on name OR path) |
 | `--pretty` | Pretty-print JSON output |
 | `--timeout <s>` | Connection/wait timeout in seconds |
 | `--no-wait` | Skip auto-wait for domain-reload commands |
 | `--help` | Show help |
 
 **Pipe resolution order**: `--pipe` > `UNICLI_PIPE` env var > instance registry > pipe discovery
+
+**Multi-instance**: with 2+ Unity editors open, auto-discovery errors out (`AMBIGUOUS_INSTANCE`) and lists pipes — pass `--project` or `--pipe`. On multiple matches, an exact `project_name` match wins. `UNICLI_AUTO_PICK=1` restores legacy auto-pick.
 
 ## Output Format
 

@@ -47,7 +47,17 @@ namespace UniCLI
 
          if (string.IsNullOrEmpty(pipe))
          {
-            pipe = UnityDiscovery.GetPipe(project);
+            try
+            {
+               pipe = UnityDiscovery.GetPipe(project);
+            }
+            catch (UnityDiscovery.AmbiguousInstanceException ex)
+            {
+               string detail = UnityDiscovery.FormatAmbiguityMessage(ex.Candidates);
+               var    error  = IpcResponse.Error("AMBIGUOUS_INSTANCE", detail);
+               Console.Error.WriteLine(error.RawJson);
+               return 1;
+            }
          }
 
          if (string.IsNullOrEmpty(pipe))
