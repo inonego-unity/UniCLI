@@ -92,6 +92,13 @@ cat file | unicli eval cs -              # stdin pipe (POSIX `-` convention)
 
 Use `eval cs` only for generics, LINQ, or .NET APIs the Lua bridge can't reach.
 
+`eval cs` code is inserted into a generated `public static object Run()` method body.
+Write C# statements that are valid inside a method body. Add namespaces with repeated
+`--using <ns>`; do not put top-level `using`, `namespace`, `class`, or method declarations
+in the code passed to `eval cs`.
+
+`eval lua` is executed as a Lua chunk via `LuaEnv.DoString(code)`, not inside the C# wrapper.
+
 Both use `return` for output. C# requires `;`, Lua doesn't.
 
 > Older UniCLI builds hit Windows cmdline-length errors on `eval cs` in projects with many assemblies. Current builds route references via a response file, so this no longer occurs.
