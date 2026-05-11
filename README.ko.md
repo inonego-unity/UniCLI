@@ -221,9 +221,20 @@ unicli package rm <id>               # 제거
 ### test — 테스트 실행
 
 ```bash
-unicli test run                      # 테스트 실행 [--mode edit|play] → job_id
-unicli test list                     # 테스트 목록 [--mode edit|play] → job_id
+unicli test run [--mode edit|play|all]                         # 테스트 실행 → job_id
+unicli test list [--mode edit|play|all]                        # 테스트 목록 → job_id
+unicli test run --mode edit --assembly Tests                   # 어셈블리 필터
+unicli test run --mode edit --assembly Tests --test My.Foo.Bar # 정확한 테스트 전체 이름
+unicli test list --mode edit --assembly Tests --group "^My\\." # 전체 이름 정규식 필터
+unicli test run --mode edit --category Smoke                   # 카테고리 필터
 ```
+
+테스트 필터는 Unity Test Framework `Filter`에 대응합니다: `--assembly` → `assemblyNames`,
+`--test` → `testNames`, `--group` → `groupNames`, `--category` → `categoryNames`.
+Unity는 `--test`는 정확한 전체 이름, `--group`은 전체 이름 정규식,
+`--category`는 카테고리 정규식, `--assembly`는 정확한 어셈블리 이름으로 매칭합니다.
+같은 옵션을 반복하면 해당 필드 안에서 OR로 동작하고, 서로 다른 필드는 AND로 조합됩니다.
+자동화에서는 전체 테스트보다 필요한 범위만 필터링해서 실행하거나 조회하는 것을 권장합니다.
 
 ### build — 프로젝트 빌드
 

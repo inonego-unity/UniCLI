@@ -221,9 +221,20 @@ unicli package rm <id>               # remove
 ### test — Test Runner
 
 ```bash
-unicli test run                      # run tests [--mode edit|play] → job_id
-unicli test list                     # list tests [--mode edit|play] → job_id
+unicli test run [--mode edit|play|all]                         # run tests → job_id
+unicli test list [--mode edit|play|all]                        # list tests → job_id
+unicli test run --mode edit --assembly Tests                   # assembly filter
+unicli test run --mode edit --assembly Tests --test My.Foo.Bar # exact test full name
+unicli test list --mode edit --assembly Tests --group "^My\\." # regex full-name filter
+unicli test run --mode edit --category Smoke                   # category filter
 ```
+
+Test filters map to Unity Test Framework `Filter`: `--assembly` → `assemblyNames`,
+`--test` → `testNames`, `--group` → `groupNames`, and `--category` → `categoryNames`.
+Unity matches `--test` by exact full name, `--group` by full-name regex,
+`--category` by category regex, and `--assembly` by exact assembly name.
+Repeat an option for OR within that field; combine different fields for AND.
+Prefer filtered runs/lists over full test runs when automating.
 
 ### build — Project Build
 
