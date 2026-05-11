@@ -9,7 +9,7 @@ namespace inonego.UniCLI.Core
 {
    // ============================================================
    /// <summary>
-   /// Copies Claude skill files from the package to the project.
+   /// Copies agent skill files from the package to the project.
    /// </summary>
    // ============================================================
    [InitializeOnLoad]
@@ -18,8 +18,15 @@ namespace inonego.UniCLI.Core
 
    #region Fields
 
-      private const string PackageSkillsDir = "Packages/com.inonego.uni-cli/.claude/skills";
-      private const string ProjectSkillsDir = ".claude/skills";
+      private const string PackageSkillsDir      = "Packages/com.inonego.uni-cli/skills";
+      private const string ProjectClaudeSkillsDir = ".claude/skills";
+      private const string ProjectCodexSkillsDir  = ".agents/skills";
+
+      private static readonly string[] ProjectSkillDirs =
+      {
+         ProjectClaudeSkillsDir,
+         ProjectCodexSkillsDir
+      };
 
    #endregion
 
@@ -51,14 +58,18 @@ namespace inonego.UniCLI.Core
                return false;
             }
 
-            foreach (var dir in Directory.GetDirectories(PackageSkillsDir))
+            foreach (var sourceDir in Directory.GetDirectories(PackageSkillsDir))
             {
-               var name = Path.GetFileName(dir);
-               var dest = Path.Combine(ProjectSkillsDir, name);
+               var name = Path.GetFileName(sourceDir);
 
-               if (Directory.Exists(dest))
+               foreach (var projectSkillDir in ProjectSkillDirs)
                {
-                  return true;
+                  var dest = Path.Combine(projectSkillDir, name);
+
+                  if (Directory.Exists(dest))
+                  {
+                     return true;
+                  }
                }
             }
 
@@ -78,12 +89,16 @@ namespace inonego.UniCLI.Core
             return;
          }
 
-         foreach (var dir in Directory.GetDirectories(PackageSkillsDir))
+         foreach (var sourceDir in Directory.GetDirectories(PackageSkillsDir))
          {
-            var name = Path.GetFileName(dir);
-            var dest = Path.Combine(ProjectSkillsDir, name);
+            var name = Path.GetFileName(sourceDir);
 
-            CopyDirectory(dir, dest);
+            foreach (var projectSkillDir in ProjectSkillDirs)
+            {
+               var dest = Path.Combine(projectSkillDir, name);
+
+               CopyDirectory(sourceDir, dest);
+            }
          }
       }
 
@@ -99,36 +114,53 @@ namespace inonego.UniCLI.Core
             return;
          }
 
-         foreach (var dir in Directory.GetDirectories(PackageSkillsDir))
+         foreach (var sourceDir in Directory.GetDirectories(PackageSkillsDir))
          {
-            var name = Path.GetFileName(dir);
-            var dest = Path.Combine(ProjectSkillsDir, name);
+            RemoveSkill(Path.GetFileName(sourceDir));
+         }
+      }
 
-            if (!Directory.Exists(dest))
+      // ------------------------------------------------------------
+      /// <summary>
+      /// Removes a skill folder from every supported agent skills directory.
+      /// </summary>
+      // ------------------------------------------------------------
+      private static void RemoveSkill(string skillName)
+      {
+         foreach (var projectSkillDir in ProjectSkillDirs)
+         {
+            var dest = Path.Combine(projectSkillDir, skillName);
+
+            if (Directory.Exists(dest))
             {
-               continue;
+               Directory.Delete(dest, true);
             }
 
-            Directory.Delete(dest, true);
+            RemoveEmptySkillsDir(projectSkillDir);
+         }
+      }
+
+      // ------------------------------------------------------------
+      /// <summary>
+      /// Removes an empty agent skills directory and its empty parent.
+      /// </summary>
+      // ------------------------------------------------------------
+      private static void RemoveEmptySkillsDir(string projectSkillDir)
+      {
+         if (!Directory.Exists(projectSkillDir) || Directory.GetFileSystemEntries(projectSkillDir).Length > 0)
+         {
+            return;
          }
 
-         // Remove empty parent directories
-         if (Directory.Exists(ProjectSkillsDir) && Directory.GetFileSystemEntries(ProjectSkillsDir).Length == 0)
+         Directory.Delete(projectSkillDir);
+
+         var parent = Path.GetDirectoryName(projectSkillDir);
+
+         if (!string.IsNullOrEmpty(parent) &&
+             Directory.Exists(parent) &&
+             Directory.GetFileSystemEntries(parent).Length == 0)
          {
-            Directory.Delete(ProjectSkillsDir);
-
-            var parent = Path.GetDirectoryName(ProjectSkillsDir);
-
-            while (!string.IsNullOrEmpty(parent) && Directory.Exists(parent))
-            {
-               if (Directory.GetFileSystemEntries(parent).Length > 0)
-               {
-                  break;
-               }
-
-               Directory.Delete(parent);
-               parent = Path.GetDirectoryName(parent);
-            }
+            Directory.Delete(parent);
          }
       }
 
@@ -146,7 +178,7 @@ namespace inonego.UniCLI.Core
             var fileName = Path.GetFileName(file);
 
             // Skip .meta files
-            if (fileName.EndsWith(".meta"))
+            if (fileName.EndsWith(".meta", StringComparison.OrdinalIgnoreCase))
             {
                continue;
             }

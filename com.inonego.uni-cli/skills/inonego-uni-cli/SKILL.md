@@ -340,11 +340,21 @@ For scene-hierarchy lookup, `h:` is usually more reliable than `FindObjectsByTyp
 ## test / build / poll
 
 ```bash
-unicli test run [--mode edit|play]                           # → job_id
-unicli test list [--mode edit|play]                          # → job_id
+unicli test run [--mode edit|play|all] [--assembly <name>] [--test <full_name>] [--group <regex>] [--category <name>]   # → job_id
+unicli test list [--mode edit|play|all] [--assembly <name>] [--test <full_name>] [--group <regex>] [--category <name>]  # → job_id
 unicli build --path Builds/Game.exe [--target <t>] [--run]   # → job_id
 unicli poll <job_id> # → {"status":"running|completed|failed","result":...}
 ```
+
+`test run` and `test list` map directly to Unity Test Framework `Filter`:
+`--assembly` -> `assemblyNames`, `--test` -> `testNames`,
+`--group` -> `groupNames`, and `--category` -> `categoryNames`.
+Unity matches `--test` by exact full name, `--group` by full-name regex,
+`--category` by category regex, and `--assembly` by exact assembly name.
+Repeating the same option is OR within that field; combining different options is AND.
+Prefer scoped filters such as `--assembly Tests --test Tests.UniCLITests.Ping_ReturnsProjectInfo`
+or `--assembly inonego.Xeri.TEST.EDIT --group "^inonego\\.Xeri\\.TEST\\.Serializable\\._Value\\."`
+instead of full project test runs when possible.
 
 Build auto-saves open scenes. Windows builds require `.exe` in path.
 

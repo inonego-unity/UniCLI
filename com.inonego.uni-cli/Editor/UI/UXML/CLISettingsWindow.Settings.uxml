@@ -27,9 +27,9 @@
                 </ui:VisualElement>
             </ui:VisualElement>
 
-            <!-- CLAUDE SKILL -->
+            <!-- AGENT SKILLS -->
             <ui:VisualElement class="cli-section">
-                <ui:Label text="CLAUDE SKILL" class="cli-section-header" />
+                <ui:Label text="AGENT SKILLS" class="cli-section-header" />
                 <ui:Toggle name="field-skill-auto-sync" label="Auto Sync" />
                 <ui:Label name="skill-status-label" text="" class="cli-skill-status" />
                 <ui:VisualElement class="cli-button-row">

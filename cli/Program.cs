@@ -168,18 +168,22 @@ namespace UniCLI
 
       // ------------------------------------------------------------
       /// <summary>
-      /// Prints usage information referencing the skill file.
+      /// Prints usage information referencing agent skill files.
       /// </summary>
       // ------------------------------------------------------------
       static void PrintHelp()
       {
-         string exeDir  = AppContext.BaseDirectory;
-         string skillMd = Path.GetFullPath
+         string exeDir             = AppContext.BaseDirectory;
+         string claudeSkillPath    = Path.GetFullPath
          (
             Path.Combine(exeDir, ".claude", "skills", "inonego-uni-cli", "SKILL.md")
          );
+         string codexSkillPath     = Path.GetFullPath
+         (
+            Path.Combine(exeDir, ".agents", "skills", "inonego-uni-cli", "SKILL.md")
+         );
 
-         Console.WriteLine($"UniCLI — Unity Editor CLI for AI Agents\n\nReference: {skillMd}");
+         Console.WriteLine($"UniCLI — Unity Editor CLI for AI Agents\n\nClaude skill reference: {claudeSkillPath}\nCodex skill reference: {codexSkillPath}");
       }
 
    #endregion

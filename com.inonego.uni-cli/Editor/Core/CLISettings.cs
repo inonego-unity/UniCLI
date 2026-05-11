@@ -52,7 +52,7 @@ namespace inonego.UniCLI.Core
 
       // ------------------------------------------------------------------
       /// <summary>
-      /// Gets or sets whether to auto-sync Claude skills on domain reload.
+      /// Gets or sets whether to auto-sync agent skills on domain reload.
       /// </summary>
       // ------------------------------------------------------------------
       public static bool SkillAutoSync

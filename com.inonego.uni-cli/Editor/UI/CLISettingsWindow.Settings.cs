@@ -233,7 +233,7 @@ namespace inonego.UniCLI
          bool installed = SkillInstaller.IsInstalled;
 
          skillStatusLabel.text = installed
-            ? "Installed at .claude/skills/"
+            ? "Installed at .claude/skills/ and .agents/skills/"
             : "Not installed";
 
          skillStatusLabel.EnableInClassList("cli-skill-status--installed", installed);

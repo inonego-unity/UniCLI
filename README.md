@@ -60,11 +60,12 @@ Or add directly to `Packages/manifest.json`:
 
 > **UniLua is required** — install it before or alongside UniCLI. Without it, `eval lua` will not be available.
 
-### 2. Claude Skill (Optional)
+### 2. Agent Skill (Optional)
 
-In Unity: **Window > UniCLI Settings > Claude Skill > Sync Skill**
+In Unity: **Window > UniCLI Settings > Agent Skills > Sync Skill**
 
-Or enable **Auto Sync** (default on) to automatically copy skill files to `.claude/skills/inonego-uni-cli/` on every domain reload.
+Or enable **Auto Sync** (default on) to automatically copy skill files to both
+`.claude/skills/inonego-uni-cli/` and `.agents/skills/inonego-uni-cli/` on every domain reload.
 
 ### 3. CLI Client
 

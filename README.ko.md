@@ -60,11 +60,12 @@ https://github.com/inonego-unity/UniCLI.git?path=/com.inonego.uni-cli
 
 > **UniLua 필수** — UniCLI와 함께 또는 먼저 설치하세요. 없으면 `eval lua`를 사용할 수 없습니다.
 
-### 2. Claude 스킬 (선택)
+### 2. Agent 스킬 (선택)
 
-Unity에서: **Window > UniCLI Settings > Claude Skill > Sync Skill**
+Unity에서: **Window > UniCLI Settings > Agent Skills > Sync Skill**
 
-**Auto Sync**(기본 켜짐) 활성화 시 도메인 리로드마다 `.claude/skills/inonego-uni-cli/`에 자동 복사됩니다.
+**Auto Sync**(기본 켜짐) 활성화 시 도메인 리로드마다 `.claude/skills/inonego-uni-cli/`와
+`.agents/skills/inonego-uni-cli/`에 자동 복사됩니다.
 
 ### 3. CLI 클라이언트
 
