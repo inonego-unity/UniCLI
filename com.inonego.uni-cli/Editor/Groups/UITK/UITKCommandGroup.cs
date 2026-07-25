@@ -1,3 +1,11 @@
+/* BLOCK_HEADER_BEGIN =======================================================================
+파일명 : UITKCommandGroup.cs
+수정일 : 2026-07-25
+
+# 설명
+에디터 창의 UI Toolkit 시각 트리를 조회하고 조작하는 명령을 제공한다.
+========================================================================= BLOCK_HEADER_END */
+
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -193,16 +201,11 @@ namespace inonego.UniCLI.Group
             throw new CLIException(Constants.Error.InvalidArgs, "--window is required. Use: editor window list");
          }
 
-         if (!int.TryParse(windowArg, out int id))
-         {
-            throw new CLIException(Constants.Error.InvalidArgs, $"Invalid window id: {windowArg}");
-         }
-
-         var win = EditorUtility.EntityIdToObject(id) as EditorWindow;
+         var win = EntityIdUtility.Resolve(windowArg) as EditorWindow;
 
          if (win == null)
          {
-            throw new CLIException(Constants.Error.InvalidArgs, $"Window {id} not found.");
+            throw new CLIException(Constants.Error.InvalidArgs, $"Window {windowArg} not found.");
          }
 
          return win;

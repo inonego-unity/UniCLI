@@ -1,3 +1,11 @@
+/* BLOCK_HEADER_BEGIN =======================================================================
+파일명 : EditorCommandGroup.cs
+수정일 : 2026-07-25
+
+# 설명
+Unity 에디터 상태와 에디터 창을 제어하는 명령을 제공한다.
+========================================================================= BLOCK_HEADER_END */
+
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -187,7 +195,7 @@ namespace inonego.UniCLI.Group
             {
                result.Add(new JObject
                {
-                  ["instance_id"] = w.GetInstanceID(),
+                  ["instance_id"] = EntityIdUtility.Serialize(w),
                   ["type"]        = w.GetType().FullName,
                   ["title"]       = w.titleContent.text
                });
@@ -197,8 +205,8 @@ namespace inonego.UniCLI.Group
          }
          else if (sub == "focus")
          {
-            int id = args.GetInt(1, 0);
-            var win = EditorUtility.EntityIdToObject(id) as EditorWindow;
+            string id = args[1];
+            var win = EntityIdUtility.Resolve(id) as EditorWindow;
 
             if (win == null)
             {
@@ -210,8 +218,8 @@ namespace inonego.UniCLI.Group
          }
          else if (sub == "close")
          {
-            int id = args.GetInt(1, 0);
-            var win = EditorUtility.EntityIdToObject(id) as EditorWindow;
+            string id = args[1];
+            var win = EntityIdUtility.Resolve(id) as EditorWindow;
 
             if (win == null)
             {

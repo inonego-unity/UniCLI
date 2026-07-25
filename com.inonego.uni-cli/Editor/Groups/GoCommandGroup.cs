@@ -1,3 +1,11 @@
+/* BLOCK_HEADER_BEGIN =======================================================================
+파일명 : GoCommandGroup.cs
+수정일 : 2026-07-25
+
+# 설명
+GameObject 생성, 조회, 계층 및 씬 이동 명령을 제공한다.
+========================================================================= BLOCK_HEADER_END */
+
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -54,9 +62,9 @@ namespace inonego.UniCLI.Group
 
          string parentId = args["parent"];
 
-         if (parentId != null && int.TryParse(parentId, out int pid))
+         if (parentId != null)
          {
-            var parent = EditorUtility.EntityIdToObject(pid) as GameObject;
+            var parent = EntityIdUtility.Resolve(parentId) as GameObject;
 
             if (parent != null)
             {
@@ -93,14 +101,14 @@ namespace inonego.UniCLI.Group
          {
             return new JObject
             {
-               ["instance_id"] = go.GetInstanceID(),
+               ["instance_id"] = EntityIdUtility.Serialize(go),
                ["active"]      = go.activeInHierarchy
             };
          }
 
          return new JObject
          {
-            ["instance_id"] = go.GetInstanceID(),
+            ["instance_id"] = EntityIdUtility.Serialize(go),
             ["active"]      = go.activeSelf
          };
       }
@@ -124,13 +132,13 @@ namespace inonego.UniCLI.Group
          {
             string parentId = args[1];
 
-            if (parentId != null && int.TryParse(parentId, out int pid))
+            if (parentId != null)
             {
-               var parent = EditorUtility.EntityIdToObject(pid) as GameObject;
+               var parent = EntityIdUtility.Resolve(parentId) as GameObject;
 
                if (parent == null)
                {
-                  throw new CLIException(Constants.Error.InvalidArgs, $"Parent {pid} not found.");
+                  throw new CLIException(Constants.Error.InvalidArgs, $"Parent {parentId} not found.");
                }
 
                Undo.RecordObject(go.transform, "Set Parent");
@@ -142,8 +150,8 @@ namespace inonego.UniCLI.Group
 
          return new JObject
          {
-            ["instance_id"] = go.GetInstanceID(),
-            ["parent"]      = p != null ? p.gameObject.GetInstanceID() : (int?)null
+            ["instance_id"] = EntityIdUtility.Serialize(go),
+            ["parent"]      = p != null ? EntityIdUtility.Serialize(p.gameObject) : JValue.CreateNull()
          };
       }
 
@@ -166,7 +174,7 @@ namespace inonego.UniCLI.Group
 
          return new JObject
          {
-            ["instance_id"] = go.GetInstanceID(),
+            ["instance_id"] = EntityIdUtility.Serialize(go),
             ["tag"]         = go.tag
          };
       }
@@ -190,7 +198,7 @@ namespace inonego.UniCLI.Group
 
          return new JObject
          {
-            ["instance_id"] = go.GetInstanceID(),
+            ["instance_id"] = EntityIdUtility.Serialize(go),
             ["layer"]       = go.layer
          };
       }
@@ -206,13 +214,13 @@ namespace inonego.UniCLI.Group
          var go = GetTargetGO(args, 0);
          string value = args[1];
 
-         if (value != null && int.TryParse(value, out int handle))
+         if (value != null && ulong.TryParse(value, out ulong handle))
          {
             for (int i = 0; i < UnityEngine.SceneManagement.SceneManager.sceneCount; i++)
             {
                var s = UnityEngine.SceneManagement.SceneManager.GetSceneAt(i);
 
-               if ((int)s.handle == handle)
+               if (SceneHandleUtility.GetRawData(s.handle) == handle)
                {
                   UnityEditor.SceneManagement.EditorSceneManager.MoveGameObjectToScene(go, s);
                   break;
@@ -222,8 +230,8 @@ namespace inonego.UniCLI.Group
 
          return new JObject
          {
-            ["instance_id"] = go.GetInstanceID(),
-            ["scene"]       = (int)go.scene.handle
+            ["instance_id"] = EntityIdUtility.Serialize(go),
+            ["scene"]       = SceneHandleUtility.GetRawData(go.scene.handle)
          };
       }
 
@@ -252,14 +260,14 @@ namespace inonego.UniCLI.Group
       // ------------------------------------------------------------
       private static GameObject GetTargetGO(CommandArgs args, int argIndex)
       {
-         int id = args.GetInt(argIndex, 0);
+         string id = args[argIndex];
 
-         if (id == 0)
+         if (string.IsNullOrEmpty(id))
          {
             throw new CLIException(Constants.Error.InvalidArgs, "GameObject instance ID required.");
          }
 
-         var obj = EditorUtility.EntityIdToObject(id) as GameObject;
+         var obj = EntityIdUtility.Resolve(id) as GameObject;
 
          if (obj == null)
          {
@@ -289,13 +297,13 @@ namespace inonego.UniCLI.Group
 
                var obj = new JObject
                {
-                  ["instance_id"] = child.GetInstanceID(),
+                  ["instance_id"] = EntityIdUtility.Serialize(child),
                   ["name"]        = child.name,
                   ["type"]        = "UnityEngine.GameObject",
                   ["active"]      = child.activeSelf,
                   ["tag"]         = child.tag,
                   ["layer"]       = child.layer,
-                  ["scene"]       = (int)child.scene.handle
+                  ["scene"]       = SceneHandleUtility.GetRawData(child.scene.handle)
                };
 
                obj["children"] = JToken.FromObject(childList);

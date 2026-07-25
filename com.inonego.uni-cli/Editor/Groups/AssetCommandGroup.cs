@@ -1,3 +1,11 @@
+/* BLOCK_HEADER_BEGIN =======================================================================
+파일명 : AssetCommandGroup.cs
+수정일 : 2026-07-25
+
+# 설명
+Unity 에셋 검색, 저장, 갱신 명령을 제공한다.
+========================================================================= BLOCK_HEADER_END */
+
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -152,13 +160,13 @@ namespace inonego.UniCLI.Group
 
          string idStr = args["id"];
 
-         if (idStr != null && int.TryParse(idStr, out int id))
+         if (idStr != null)
          {
-            var obj = EditorUtility.EntityIdToObject(id);
+            var obj = EntityIdUtility.Resolve(idStr);
 
             if (obj == null)
             {
-               throw new CLIException(Constants.Error.InvalidArgs, $"Object {id} not found.");
+               throw new CLIException(Constants.Error.InvalidArgs, $"Object {idStr} not found.");
             }
 
             AssetDatabase.SaveAssetIfDirty(obj);

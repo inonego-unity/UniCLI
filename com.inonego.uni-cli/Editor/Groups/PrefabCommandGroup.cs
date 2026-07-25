@@ -1,3 +1,11 @@
+/* BLOCK_HEADER_BEGIN =======================================================================
+파일명 : PrefabCommandGroup.cs
+수정일 : 2026-07-25
+
+# 설명
+프리팹 콘텐츠와 프리팹 인스턴스를 다루는 명령을 제공한다.
+========================================================================= BLOCK_HEADER_END */
+
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -39,21 +47,21 @@ namespace inonego.UniCLI.Group
          return new JObject
          {
             ["path"]    = path,
-            ["root_id"] = root.GetInstanceID()
+            ["root_id"] = EntityIdUtility.Serialize(root)
          };
       }
 
       [CLICommand("prefab", "unload", description = "Unload prefab contents")]
       public static object Unload(CommandArgs args)
       {
-         int id = args.GetInt(0, 0);
+         string id = args[0];
 
-         if (id == 0)
+         if (string.IsNullOrEmpty(id))
          {
             throw new CLIException(Constants.Error.InvalidArgs, "Root instance ID required (from prefab load).");
          }
 
-         var go = EditorUtility.EntityIdToObject(id) as GameObject;
+         var go = EntityIdUtility.Resolve(id) as GameObject;
 
          if (go == null)
          {
@@ -68,15 +76,15 @@ namespace inonego.UniCLI.Group
       [CLICommand("prefab", "save", description = "Save GameObject as prefab")]
       public static object Save(CommandArgs args)
       {
-         int id     = args.GetInt(0, 0);
+         string id   = args[0];
          string path = args[1];
 
-         if (id == 0 || string.IsNullOrEmpty(path))
+         if (string.IsNullOrEmpty(id) || string.IsNullOrEmpty(path))
          {
             throw new CLIException(Constants.Error.InvalidArgs, "Instance ID and path required.");
          }
 
-         var go = EditorUtility.EntityIdToObject(id) as GameObject;
+         var go = EntityIdUtility.Resolve(id) as GameObject;
 
          if (go == null)
          {
@@ -130,14 +138,14 @@ namespace inonego.UniCLI.Group
       // ------------------------------------------------------------
       private static GameObject GetPrefabInstance(CommandArgs args)
       {
-         int id = args.GetInt(0, 0);
+         string id = args[0];
 
-         if (id == 0)
+         if (string.IsNullOrEmpty(id))
          {
             throw new CLIException(Constants.Error.InvalidArgs, "Instance ID required.");
          }
 
-         var obj = EditorUtility.EntityIdToObject(id) as GameObject;
+         var obj = EntityIdUtility.Resolve(id) as GameObject;
 
          if (obj == null)
          {

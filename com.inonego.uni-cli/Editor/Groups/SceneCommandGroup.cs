@@ -1,3 +1,11 @@
+/* BLOCK_HEADER_BEGIN =======================================================================
+파일명 : SceneCommandGroup.cs
+수정일 : 2026-07-25
+
+# 설명
+Unity 씬의 조회, 생성, 로드, 저장 및 활성화 명령을 제공한다.
+========================================================================= BLOCK_HEADER_END */
+
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -170,13 +178,13 @@ namespace inonego.UniCLI.Group
       {
          string idStr = args["id"];
 
-         if (idStr != null && int.TryParse(idStr, out int handle))
+         if (idStr != null && ulong.TryParse(idStr, out ulong handle))
          {
             for (int i = 0; i < SceneManager.sceneCount; i++)
             {
                var s = SceneManager.GetSceneAt(i);
 
-               if ((int)s.handle == handle)
+               if (SceneHandleUtility.GetRawData(s.handle) == handle)
                {
                   SceneManager.SetActiveScene(s);
                   return s;
@@ -202,13 +210,13 @@ namespace inonego.UniCLI.Group
       {
          string idStr = args["id"];
 
-         if (idStr != null && int.TryParse(idStr, out int handle))
+         if (idStr != null && ulong.TryParse(idStr, out ulong handle))
          {
             for (int i = 0; i < SceneManager.sceneCount; i++)
             {
                var s = SceneManager.GetSceneAt(i);
 
-               if ((int)s.handle == handle)
+               if (SceneHandleUtility.GetRawData(s.handle) == handle)
                {
                   return s;
                }

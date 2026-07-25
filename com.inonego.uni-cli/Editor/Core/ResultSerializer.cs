@@ -1,3 +1,11 @@
+/* BLOCK_HEADER_BEGIN =======================================================================
+파일명 : ResultSerializer.cs
+수정일 : 2026-07-25
+
+# 설명
+UniCLI 명령 결과와 Unity 객체 식별자를 JSON 토큰으로 직렬화한다.
+========================================================================= BLOCK_HEADER_END */
+
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -133,7 +141,7 @@ namespace inonego.UniCLI.Core
 
          return new JObject
          {
-            ["instance_id"] = obj.GetInstanceID(),
+            ["instance_id"] = EntityIdUtility.Serialize(obj),
             ["name"]        = obj.name,
             ["type"]        = obj.GetType().FullName
          };
@@ -151,11 +159,11 @@ namespace inonego.UniCLI.Core
             return JValue.CreateNull();
          }
 
-         int scene = go.scene.handle;
+         ulong scene = SceneHandleUtility.GetRawData(go.scene.handle);
 
          return new JObject
          {
-            ["instance_id"] = go.GetInstanceID(),
+            ["instance_id"] = EntityIdUtility.Serialize(go),
             ["name"]        = go.name,
             ["type"]        = go.GetType().FullName,
             ["active"]      = go.activeSelf,
@@ -179,10 +187,10 @@ namespace inonego.UniCLI.Core
 
          return new JObject
          {
-            ["instance_id"] = comp.GetInstanceID(),
+            ["instance_id"] = EntityIdUtility.Serialize(comp),
             ["name"]        = comp.name,
             ["type"]        = comp.GetType().FullName,
-            ["game_object"] = comp.gameObject.GetInstanceID()
+            ["game_object"] = EntityIdUtility.Serialize(comp.gameObject)
          };
       }
 
@@ -193,7 +201,7 @@ namespace inonego.UniCLI.Core
       // ------------------------------------------------------------
       private static JToken SerializeScene(Scene scene)
       {
-         int handle = scene.handle;
+         ulong handle = SceneHandleUtility.GetRawData(scene.handle);
 
          return new JObject
          {

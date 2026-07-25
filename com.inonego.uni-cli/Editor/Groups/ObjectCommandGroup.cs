@@ -1,3 +1,11 @@
+/* BLOCK_HEADER_BEGIN =======================================================================
+파일명 : ObjectCommandGroup.cs
+수정일 : 2026-07-25
+
+# 설명
+Unity 객체의 복제, 선택, 강조 및 삭제 명령을 제공한다.
+========================================================================= BLOCK_HEADER_END */
+
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -46,9 +54,9 @@ namespace inonego.UniCLI.Group
 
          string parentId = args["parent"];
 
-         if (parentId != null && int.TryParse(parentId, out int pid))
+         if (parentId != null)
          {
-            var parent = EditorUtility.EntityIdToObject(pid) as GameObject;
+            var parent = EntityIdUtility.Resolve(parentId) as GameObject;
 
             if (parent != null && clone is GameObject goClone)
             {
@@ -82,9 +90,9 @@ namespace inonego.UniCLI.Group
       [CLICommand("object", "ping", description = "Highlight an object in editor")]
       public static object Ping(CommandArgs args)
       {
-         int id = args.GetInt(0, 0);
+         var obj = EntityIdUtility.Resolve(args[0]);
 
-         EditorGUIUtility.PingObject(id);
+         EditorGUIUtility.PingObject(obj);
 
          return null;
       }
@@ -105,20 +113,20 @@ namespace inonego.UniCLI.Group
 
          for (int i = 0; i < args.Count; i++)
          {
-            int id = args.GetInt(i, 0);
+            string id = args[i];
 
-            if (id == 0)
+            if (string.IsNullOrEmpty(id))
             {
                notFound.Add(id);
                continue;
             }
 
-            var obj = EditorUtility.EntityIdToObject(id);
+            var obj = EntityIdUtility.Resolve(id);
 
             if (obj != null)
             {
                objects.Add(obj);
-               selected.Add(id);
+               selected.Add(EntityIdUtility.Serialize(obj));
             }
             else
             {
@@ -154,7 +162,7 @@ namespace inonego.UniCLI.Group
 
          return new JObject
          {
-            ["instance_id"] = obj.GetInstanceID(),
+            ["instance_id"] = EntityIdUtility.Serialize(obj),
             ["name"]        = obj.name
          };
       }
@@ -170,14 +178,14 @@ namespace inonego.UniCLI.Group
       // ------------------------------------------------------------
       private static UnityEngine.Object GetTarget(CommandArgs args, int argIndex)
       {
-         int id = args.GetInt(argIndex, 0);
+         string id = args[argIndex];
 
-         if (id == 0)
+         if (string.IsNullOrEmpty(id))
          {
             throw new CLIException(Constants.Error.InvalidArgs, "Instance ID required.");
          }
 
-         var obj = EditorUtility.EntityIdToObject(id);
+         var obj = EntityIdUtility.Resolve(id);
 
          if (obj == null)
          {

@@ -1,3 +1,11 @@
+/* BLOCK_HEADER_BEGIN =======================================================================
+파일명 : CaptureCommandGroup.cs
+수정일 : 2026-07-25
+
+# 설명
+게임 뷰, 씬 뷰, 에디터 창의 이미지 캡처 명령을 제공한다.
+========================================================================= BLOCK_HEADER_END */
+
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -66,7 +74,7 @@ namespace inonego.UniCLI.Group
          }
          else if (target == "window")
          {
-            int id = args.GetInt(1, 0);
+            string id = args[1];
             return CaptureWindow(id, path, scale);
          }
 
@@ -198,9 +206,9 @@ namespace inonego.UniCLI.Group
       /// Captures an editor window by instance ID.
       /// </summary>
       // ------------------------------------------------------------
-      private static object CaptureWindow(int id, string path, float scale)
+      private static object CaptureWindow(string id, string path, float scale)
       {
-         var window = EditorUtility.EntityIdToObject(id) as EditorWindow;
+         var window = EntityIdUtility.Resolve(id) as EditorWindow;
 
          if (window == null)
          {
