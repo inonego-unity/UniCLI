@@ -13,8 +13,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\lib\InoCLI\src\InoCLI.csproj" />
-    <ProjectReference Include="..\lib\InoIPC\src\InoIPC.csproj" />
+    <ProjectReference Include="..\lib\InoCLI\csharp\src\InoCLI.csproj" />
+    <ProjectReference Include="..\lib\InoIPC\csharp\src\InoIPC.csproj" />
   </ItemGroup>
 
 </Project>
